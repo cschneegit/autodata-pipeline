@@ -12,7 +12,7 @@ def import_csv_data(file_path: str) -> pd.DataFrame:
     """Liest eine Rohdaten-CSV ein und gibt ein Pandas DataFrame zurück."""
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Die Datei {file_path} wurde nicht gefunden.")
-    
+
     df = pd.read_csv(file_path)
     print(f"[INFO] Erfolgreich eingelesen: {file_path} ({len(df)} Zeilen)")
     return df
