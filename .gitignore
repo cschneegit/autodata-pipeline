@@ -1,0 +1,19 @@
+# Python Cache & kompiliertes Zeug
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Betriebssystem-Spezifisches
+.DS_Store
+Thumbs.db
+
+# --- CREDENTIALS & SECRETS (Wichtig!) ---
+.env
+.env.local
+.env.*
+secrets/
+*.pem
+*.key
+*.secret
+credentials.json

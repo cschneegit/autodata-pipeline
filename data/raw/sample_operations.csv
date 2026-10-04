@@ -1,0 +1,6 @@
+id,datum,name,email,telefon,standort,massnahmetyp,status,durchlaufzeit_tage
+1,2026-09-01,Max Mustermann,max.mustermann@example.com,0171-1234567,Berlin,Onboarding,abgeschlossen,5
+2,2026-09-02,Erika Musterfrau,erika@example.com,0170-9876543,Hamburg,Wartung,in_bearbeitung,12
+3,2026-09-03,,,,München,Onboarding,offen,
+4,2026-09-04,John Doe,john.doe@company.org,0151-5554443,Berlin,Audit,abgeschlossen,8
+5,2026-09-05,Jane Smith,jane.smith@company.org,0160-1112233,Hamburg,Wartung,abgeschlossen,3
