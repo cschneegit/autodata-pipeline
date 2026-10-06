@@ -17,4 +17,4 @@ processing:
   date_format: "%Y-%m-%d"
   # missing_value_strategy legt fest, wie fehlende Werte behandelt werden sollen. 
   # Optionen sind "drop" (Zeilen mit fehlenden Werten entfernen) oder "fill_zero" (fehlende Werte mit Null auffüllen).
-  missing_value_strategy: "drop" # Optionen: drop, fill_zero
+  missing_value_strategy: "drop"
