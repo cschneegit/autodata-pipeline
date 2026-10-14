@@ -7,13 +7,18 @@ def calculate_kpis(df: pd.DataFrame) -> dict:
 
     total_records = len(df)
     
-    # Durchlaufzeiten analysieren (falls 'duration' vorhanden ist)
-    if "duration" in df.columns:
-        overall_avg_duration = float(df["duration"].mean())
-        max_duration = float(df["duration"].max())
-        min_duration = float(df["duration"].min())
+    # Durchlaufzeiten analysieren (unterstützt 'durchlaufzeit_tage' oder 'duration')
+    duration_col = None
+    for col in ["durchlaufzeit_tage", "duration"]:
+        if col in df.columns:
+            duration_col = col
+            break
+
+    if duration_col:
+        overall_avg_duration = float(df[duration_col].mean())
+        max_duration = float(df[duration_col].max())
+        min_duration = float(df[duration_col].min())
     else:
-        # Falls keine 'duration'-Spalte vorhanden ist, setzen wir die Werte auf 0
         overall_avg_duration = 0.0
         max_duration = 0.0
         min_duration = 0.0
