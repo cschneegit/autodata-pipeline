@@ -74,6 +74,7 @@ if run_pipeline or "df_processed" in st.session_state:
     st.subheader("📈 Interaktive Analysen")
     chart_col1, chart_col2 = st.columns(2)
 
+    # Kuchendiagramm
     with chart_col1:
         st.markdown("#### Status-Verteilung")
         status_counts = kpis.get("status_counts", {})
@@ -90,6 +91,7 @@ if run_pipeline or "df_processed" in st.session_state:
         else:
             st.info("Keine Status-Daten vorhanden.")
 
+    # Histogramm
     with chart_col2:
         st.markdown("#### Verteilung der Durchlaufzeiten")
         duration_col = "durchlaufzeit_tage" if "durchlaufzeit_tage" in df.columns else ("duration" if "duration" in df.columns else None)
