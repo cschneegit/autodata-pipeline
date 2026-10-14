@@ -16,7 +16,7 @@ from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
 from src.reporting.excel_exporter import export_to_excel
 
-# --- Page Configuration ---
+# --- Page Konfigurationen ---
 st.set_page_config(
     page_title="AutoData Pipeline Control Center",
     page_icon="📊",
@@ -26,7 +26,7 @@ st.set_page_config(
 st.title("📊 AutoData Pipeline – Interactive Control Center")
 st.markdown("Willkommen im Cockpit! Hier kannst du die Pipeline ausführen, Daten analysieren und Berichte herunterladen.")
 
-# --- Sidebar Configuration ---
+# --- Sidebar Konfigurationen ---
 st.sidebar.header("Pipeline-Steuerung")
 
 config = load_config()
@@ -37,7 +37,7 @@ st.sidebar.info(f"**Datenquelle:** `{sample_file}`")
 
 run_pipeline = st.sidebar.button("🚀 Pipeline ausführen", type="primary")
 
-# --- Pipeline Pipeline Execution Logic ---
+# --- Pipeline Logik ---
 if run_pipeline or "df_processed" in st.session_state:
     if run_pipeline:
         with st.spinner("Pipeline läuft... (Import -> Validierung -> Anonymisierung -> KPIs)"):
