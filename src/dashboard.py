@@ -23,7 +23,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📊 AutoData Pipeline – Interactive Control Center")
+st.title("📊 AutoData Pipeline – Interaktives Kontrollzentrum")
 st.markdown("Willkommen im Cockpit! Hier kannst du die Pipeline ausführen, Daten analysieren und Berichte herunterladen.")
 
 # --- Sidebar Konfigurationen ---
