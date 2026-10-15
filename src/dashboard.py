@@ -56,6 +56,7 @@ if run_pipeline or "df_processed" in st.session_state:
             
         st.success("Pipeline erfolgreich ausgeführt!")
 
+    # Session-state Daten abrufen
     df = st.session_state["df_processed"]
     kpis = st.session_state["kpis"]
 
