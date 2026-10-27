@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  autodata-pipeline:
+    build: .
+    container_name: autodata_pipeline_app
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    restart: unless-stopped
