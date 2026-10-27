@@ -1,3 +1,4 @@
+# Docker Compose config für die Autodata-Pipeline
 services:
   autodata-pipeline:
     build: .
@@ -7,4 +8,5 @@ services:
     volumes:
       - ./data:/app/data
       - ./config:/app/config
+    # restart: unless-stopped wenn Sie möchten, dass der Container automatisch neu startet, wenn er abstürzt oder der Host neu gestartet wird.
     restart: unless-stopped
