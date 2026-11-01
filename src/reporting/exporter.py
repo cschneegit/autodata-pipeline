@@ -90,17 +90,31 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
     os.makedirs(temp_dir, exist_ok=True)
 
-    # Spaltenidentifikation für Diagramme (z.B. Kategorie/Status und Durchlaufzeit)
-    cat_col = "Kategorie" if "Kategorie" in df.columns else df.columns[0]
-    time_col = "Durchlaufzeit" if "Durchlaufzeit" in df.columns else df.columns[1]
+    # 1. Automatische Spaltenerkennung (Status/Kategorie & Durchlaufzeiten)
+    cat_col = "status" if "status" in df.columns else ("Kategorie" if "Kategorie" in df.columns else df.columns[0])
+    
+    # Suche nach Durchlaufzeit-Spalten aus dem Pipeline-Datensatz
+    time_col = None
+    for col in ["durchlaufzeit_tage", "duration", "Durchlaufzeit"]:
+        if col in df.columns:
+            time_col = col
+            break
+    
+    if not time_col:
+        numeric_cols = df.select_dtypes(include=["number"]).columns
+        time_col = numeric_cols[0] if len(numeric_cols) > 0 else df.columns[1]
+
+    # Daten kopieren & Werte explizit als Numerik erzwingen (NaNs mit 0 auffüllen)
+    df_chart = df.copy()
+    df_chart[time_col] = pd.to_numeric(df_chart[time_col], errors="coerce").fillna(0)
 
     # --- 1. Kreisdiagramm (Pie Chart) ---
     pie_path = os.path.join(temp_dir, "pie_chart.png")
     plt.figure(figsize=(4, 4))
-    pie_data = df.groupby(cat_col)[time_col].sum()
+    pie_data = df_chart.groupby(cat_col)[time_col].sum()
     plt.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%', startangle=140, 
             colors=['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6'])
-    plt.title('Verteilung', fontsize=12, fontweight='bold')
+    plt.title('Verteilung der Durchlaufzeiten', fontsize=12, fontweight='bold')
     plt.tight_layout()
     plt.savefig(pie_path, dpi=200)
     plt.close()
@@ -108,8 +122,8 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     # --- 2. Balkendiagramm (Bar Chart) ---
     bar_path = os.path.join(temp_dir, "bar_chart.png")
     plt.figure(figsize=(6, 3))
-    plt.bar(df[cat_col].astype(str), df[time_col], color='#3498db')
-    plt.title('Durchlaufzeit nach Übersicht', fontsize=12, fontweight='bold')
+    plt.bar(df_chart[cat_col].astype(str), df_chart[time_col], color='#3498db')
+    plt.title('Durchlaufzeit nach Status', fontsize=12, fontweight='bold')
     plt.xlabel(cat_col)
     plt.ylabel('Zeit (Tage)')
     plt.xticks(rotation=45, ha='right')
@@ -143,7 +157,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     # Datentabelle (A, B, C, D)
     table_data = [list(df.columns)] + df.values.tolist()
-    # Für zu lange Tabellen Werte als String formatieren
     formatted_table_data = [[str(cell) for cell in row] for row in table_data]
     
     t = Table(formatted_table_data, hAlign='LEFT')
@@ -160,21 +173,21 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 15))
 
     # Unten: Max & Min Werte als Textform
-    max_idx = df[time_col].idxmax()
-    min_idx = df[time_col].idxmin()
+    max_idx = df_chart[time_col].idxmax()
+    min_idx = df_chart[time_col].idxmin()
     
-    max_val = df.loc[max_idx, time_col]
-    max_cat = df.loc[max_idx, cat_col]
+    max_val = df_chart.loc[max_idx, time_col]
+    max_cat = df_chart.loc[max_idx, cat_col]
     
-    min_val = df.loc[min_idx, time_col]
-    min_cat = df.loc[min_idx, cat_col]
+    min_val = df_chart.loc[min_idx, time_col]
+    min_cat = df_chart.loc[min_idx, cat_col]
 
     text_style = ParagraphStyle('SummaryText', parent=styles['Normal'], fontSize=11, leading=16)
     
     summary_html = f"""
     <b>Zahlen in Textform:</b><br/>
-    • <b>Längste Durchlaufzeit (Max):</b> {max_cat} mit {max_val} Tagen<br/>
-    • <b>Kürzeste Durchlaufzeit (Min):</b> {min_cat} mit {min_val} Tagen
+    • <b>Längste Durchlaufzeit (Max):</b> Status '{max_cat}' mit {max_val} Tagen<br/>
+    • <b>Kürzeste Durchlaufzeit (Min):</b> Status '{min_cat}' mit {min_val} Tagen
     """
     story.append(Paragraph(summary_html, text_style))
 
