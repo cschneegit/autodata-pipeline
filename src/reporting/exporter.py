@@ -27,9 +27,7 @@ def _get_output_path(output_filename: str) -> str:
     return os.path.join(processed_dir, output_filename)
 
 
-# ==========================================
 # 1. EXCEL EXPORT
-# ==========================================
 def export_to_excel(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.xlsx"):
     """Exportiert Daten und KPIs in eine Excel-Datei mit mehreren Tabellenblättern."""
     output_path = _get_output_path(output_filename)
@@ -46,9 +44,7 @@ def export_to_excel(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeli
     print(f"[INFO] Excel-Bericht gespeichert unter: '{output_path}'")
 
 
-# ==========================================
 # 2. CSV EXPORT
-# ==========================================
 def export_to_csv(df: pd.DataFrame, output_filename: str = "pipeline_report.csv"):
     """Exportiert die verarbeiteten Daten als CSV-Datei."""
     output_path = _get_output_path(output_filename)
@@ -56,9 +52,7 @@ def export_to_csv(df: pd.DataFrame, output_filename: str = "pipeline_report.csv"
     print(f"[INFO] CSV-Datei gespeichert unter: '{output_path}'")
 
 
-# ==========================================
 # 3. JSON EXPORT
-# ==========================================
 def export_to_json(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.json"):
     """Exportiert Daten und KPIs gemeinsam in eine strukturierte JSON-Datei."""
     output_path = _get_output_path(output_filename)
@@ -75,9 +69,8 @@ def export_to_json(df: pd.DataFrame, kpis: dict, output_filename: str = "pipelin
     print(f"[INFO] JSON-Datei gespeichert unter: '{output_path}'")
 
 
-# ==========================================
+
 # 4. PDF EXPORT (Visueller Report laut Flipchart-Skizze)
-# ==========================================
 def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.pdf"):
     """
     Generiert einen visuellen PDF-Report exakt nach Flipchart-Layout:
@@ -201,9 +194,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     print(f"[INFO] PDF-Bericht (Layout laut Skizze) gespeichert unter: '{output_path}'")
 
 
-# ==========================================
 # ALL-IN-ONE EXPORTER ROUTER
-# ==========================================
 def export_data(df: pd.DataFrame, kpis: dict, fmt: str = "excel", filename: str = None):
     """
     Zentraler Einstiegspunkt für den Datenexport.
