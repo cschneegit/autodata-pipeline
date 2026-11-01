@@ -14,7 +14,7 @@ import pandas as pd
 from src.etl.importer import load_config, import_csv_data, validate_schema
 from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
-from src.exporter.exporter import export_data  # Neuer zentraler Exporter
+from src.reporting.exporter import export_data
 
 # --- Page Konfigurationen ---
 st.set_page_config(
