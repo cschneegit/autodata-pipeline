@@ -81,6 +81,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     """
     output_path = _get_output_path(output_filename)
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
+    # Sicherstellen, dass das Temp-Verzeichnis existiert
     os.makedirs(temp_dir, exist_ok=True)
 
     # 1. Automatische Spaltenerkennung (Status/Kategorie & Durchlaufzeiten)
