@@ -22,8 +22,8 @@ def validate_schema(df: pd.DataFrame) -> pd.DataFrame:
     config = load_config()
     strategy = config["processing"].get("missing_value_strategy", "drop")
     
-    # Beispielhafte Pflichtspaltenprüfung
-    required_columns = ["id", "datum", "standort", "status"]
+    # Aktualisierte Pflichtspalten für den neuen Datensatz
+    required_columns = ["id", "eingangsdatum", "standort", "status"]
     for col in required_columns:
         if col not in df.columns:
             raise ValueError(f"Pflichtspalte '{col}' fehlt im Datensatz!")
@@ -31,7 +31,7 @@ def validate_schema(df: pd.DataFrame) -> pd.DataFrame:
     # Umgang mit fehlenden Werten
     initial_count = len(df)
     if strategy == "drop":
-        df = df.dropna(subset=["id", "datum"])
+        df = df.dropna(subset=["id", "eingangsdatum"])
     elif strategy == "fill_zero":
         df = df.fillna(0)
         
