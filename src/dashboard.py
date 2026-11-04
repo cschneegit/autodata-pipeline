@@ -105,8 +105,8 @@ if run_pipeline or "df_processed" in st.session_state:
             st.info("Keine Status-Daten vorhanden.")
 
     with chart_col2:
-        st.markdown("#### Verteilung der Durchlaufzeiten")
-        duration_col = "durchlaufzeit_tage" if "durchlaufzeit_tage" in df.columns else ("duration" if "duration" in df.columns else None)
+        st.markdown("#### Verteilung der Gesamtdurchlaufzeiten")
+        duration_col = "gesamtdurchlaufzeit_tage" if "gesamtdurchlaufzeit_tage" in df.columns else ("durchlaufzeit_tage" if "durchlaufzeit_tage" in df.columns else None)
         if duration_col:
             fig_duration = px.histogram(
                 df, x=duration_col, nbins=10, title="Durchlaufzeiten in Tagen",

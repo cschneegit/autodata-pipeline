@@ -77,28 +77,23 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     - Kreisdiagramm oben
     - Balkendiagramm darunter
     - Daten-Tabelle
-    - Durchlaufzeit Max & Min als Text unten
+    - Ausformulierte Sätze für Max & Min Durchlaufzeit unten
     """
     output_path = _get_output_path(output_filename)
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
-    # Sicherstellen, dass das Temp-Verzeichnis existiert
     os.makedirs(temp_dir, exist_ok=True)
 
-    # 1. Automatische Spaltenerkennung (Status/Kategorie & Durchlaufzeiten)
-    cat_col = "status" if "status" in df.columns else ("Kategorie" if "Kategorie" in df.columns else df.columns[0])
-    
-    # Suche nach Durchlaufzeit-Spalten aus dem Pipeline-Datensatz
+    # Spaltenerkennung
+    cat_col = "status" if "status" in df.columns else df.columns[0]
     time_col = None
-    for col in ["durchlaufzeit_tage", "duration", "Durchlaufzeit"]:
+    for col in ["gesamtdurchlaufzeit_tage", "durchlaufzeit_tage", "duration"]:
         if col in df.columns:
             time_col = col
             break
-    
     if not time_col:
         numeric_cols = df.select_dtypes(include=["number"]).columns
         time_col = numeric_cols[0] if len(numeric_cols) > 0 else df.columns[1]
 
-    # Daten kopieren & Werte explizit als Numerik erzwingen (NaNs mit 0 auffüllen)
     df_chart = df.copy()
     df_chart[time_col] = pd.to_numeric(df_chart[time_col], errors="coerce").fillna(0)
 
@@ -108,7 +103,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     pie_data = df_chart.groupby(cat_col)[time_col].sum()
     plt.pie(pie_data, labels=pie_data.index, autopct='%1.1f%%', startangle=140, 
             colors=['#3498db', '#2ecc71', '#e74c3c', '#f1c40f', '#9b59b6'])
-    plt.title('Verteilung der Durchlaufzeiten', fontsize=12, fontweight='bold')
+    plt.title('Verteilung nach Status', fontsize=12, fontweight='bold')
     plt.tight_layout()
     plt.savefig(pie_path, dpi=200)
     plt.close()
@@ -117,9 +112,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     bar_path = os.path.join(temp_dir, "bar_chart.png")
     plt.figure(figsize=(6, 3))
     plt.bar(df_chart[cat_col].astype(str), df_chart[time_col], color='#3498db')
-    plt.title('Durchlaufzeit nach Status', fontsize=12, fontweight='bold')
+    plt.title('Gesamtdurchlaufzeiten im Überblick', fontsize=12, fontweight='bold')
     plt.xlabel(cat_col)
-    plt.ylabel('Zeit (Tage)')
+    plt.ylabel('Tage')
     plt.xticks(rotation=45, ha='right')
     plt.tight_layout()
     plt.savefig(bar_path, dpi=200)
@@ -130,26 +125,16 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle(
-        'DocTitle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        spaceAfter=15,
-        textColor=colors.HexColor('#2c3e50')
-    )
-
-    story.append(Paragraph("AutoData-Pipeline: Analyse-Report", title_style))
+    title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=18, spaceAfter=15, textColor=colors.HexColor('#2c3e50'))
+    story.append(Paragraph("AutoData-Pipeline: Erweiterter Analyse-Report", title_style))
     story.append(Spacer(1, 10))
 
-    # Oben: Kreisdiagramm
     story.append(Image(pie_path, width=180, height=180))
     story.append(Spacer(1, 15))
-
-    # Mitte: Balkendiagramm
     story.append(Image(bar_path, width=360, height=180))
     story.append(Spacer(1, 15))
 
-    # Datentabelle (A, B, C, D)
+    # Datentabelle
     table_data = [list(df.columns)] + df.values.tolist()
     formatted_table_data = [[str(cell) for cell in row] for row in table_data]
     
@@ -166,34 +151,27 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(t)
     story.append(Spacer(1, 15))
 
-    # Unten: Max & Min Werte als Textform
-    max_idx = df_chart[time_col].idxmax()
-    min_idx = df_chart[time_col].idxmin()
-    
-    max_val = df_chart.loc[max_idx, time_col]
-    max_cat = df_chart.loc[max_idx, cat_col]
-    
-    min_val = df_chart.loc[min_idx, time_col]
-    min_cat = df_chart.loc[min_idx, cat_col]
+    # Ausformulierte Sätze für Max & Min (gemäß deiner neuen Anforderung)
+    max_val = kpis.get("max_duration", 0.0)
+    min_val = kpis.get("min_duration", 0.0)
+    max_info = kpis.get("max_detail", "")
+    min_info = kpis.get("min_detail", "")
 
     text_style = ParagraphStyle('SummaryText', parent=styles['Normal'], fontSize=11, leading=16)
     
     summary_html = f"""
-    <b>Zahlen in Textform:</b><br/>
-    • <b>Längste Durchlaufzeit (Max):</b> Status '{max_cat}' mit {max_val} Tagen<br/>
-    • <b>Kürzeste Durchlaufzeit (Min):</b> Status '{min_cat}' mit {min_val} Tagen
+    <b>Zusammenfassung der Durchlaufzeiten:</b><br/>
+    • Im vorliegenden Analysecard-Report wurde als <b>längste Durchlaufzeit</b> ein Wert von <b>{max_val} Tagen</b> verzeichnet ({max_info}).<br/>
+    • Demgegenüber betrug die <b>kürzeste Durchlaufzeit</b> im optimierten Prozess lediglich <b>{min_val} Tage</b> ({min_info}).
     """
     story.append(Paragraph(summary_html, text_style))
 
-    # Dokument erzeugen
     doc.build(story)
     
-    # Aufräumen der Temp-Bilder
     if os.path.exists(pie_path): os.remove(pie_path)
     if os.path.exists(bar_path): os.remove(bar_path)
     
-    print(f"[INFO] PDF-Bericht (Layout laut Skizze) gespeichert unter: '{output_path}'")
-
+    print(f"[INFO] PDF-Bericht erfolgreich unter '{output_path}' gespeichert.")
 
 # ALL-IN-ONE EXPORTER ROUTER
 def export_data(df: pd.DataFrame, kpis: dict, fmt: str = "excel", filename: str = None):
