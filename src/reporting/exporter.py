@@ -407,7 +407,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     # --- Diagramm 2: Kundenzufriedenheitsverteilung (Pie Chart für Sektion 04) ---
     pie_path = os.path.join(temp_dir, "satisfaction_pie.png")
-    plt.figure(figsize=(4.5, 2.3))
+    plt.figure(figsize=(6.5, 3.0))
     satisfaction_counts = df_calc['kundenzufriedenheit'].value_counts().sort_index()
     
     colors_pie = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db']
@@ -434,7 +434,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 8))
     story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber:</b>", sub_style))
     story.append(Spacer(1, 4))
-    story.append(Image(pie_path, width=220, height=115))
+    story.append(Image(pie_path, width=380, height=175))
     story.append(Spacer(1, 6))
 
     doc.build(story)
