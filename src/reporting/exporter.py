@@ -405,15 +405,42 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     max_cost_st = st_w.loc[st_w['Gesamtkosten'].idxmax(), 'standort']
     max_cost_val = st_w['Gesamtkosten'].max()
 
+    # --- Diagramm 2: Kundenzufriedenheitsverteilung (Pie Chart für Sektion 04) ---
+    pie_path = os.path.join(temp_dir, "satisfaction_pie.png")
+    plt.figure(figsize=(4.5, 2.3))
+    satisfaction_counts = df_calc['kundenzufriedenheit'].value_counts().sort_index()
+    
+    colors_pie = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db']
+    plt.pie(
+        satisfaction_counts, 
+        labels=[f"{stars} ★" for stars in satisfaction_counts.index], 
+        autopct='%1.1f%%', 
+        startangle=140, 
+        colors=colors_pie[:len(satisfaction_counts)],
+        textprops={'fontsize': 8}
+    )
+    plt.title('Kundenzufriedenheitsverteilung (Sterne)', fontsize=10, fontweight='bold')
+    plt.tight_layout()
+    plt.savefig(pie_path, dpi=250)
+    plt.close()
+
     text_wirt = (
         f"Die Gesamtkosten belaufen sich im Berichtszeitraum auf <b>{total_kosten:,.2f} €</b>. Der Standort mit dem höchsten Kostenvolumen ist "
         f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>. Die Kundenzufriedenheit steht in direktem Zusammenhang mit schnellen Durchlaufzeiten."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
 
+    # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
+    story.append(Spacer(1, 8))
+    story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber:</b>", sub_style))
+    story.append(Spacer(1, 4))
+    story.append(Image(pie_path, width=220, height=115))
+    story.append(Spacer(1, 6))
+
     doc.build(story)
     
     if os.path.exists(chart_path): os.remove(chart_path)
+    if os.path.exists(pie_path): os.remove(pie_path)
     print(f"[INFO] Management-Report PDF erfolgreich generiert unter: '{output_path}'")
 
 
