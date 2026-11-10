@@ -373,6 +373,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     st_w = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'),
         Gesamtkosten=('kosten_eur', 'sum'),
+        # Lambda-Funktion zur Berechnung der Nacharbeitsquote in Prozent
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
