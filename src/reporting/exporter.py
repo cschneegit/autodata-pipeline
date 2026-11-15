@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-# Pfad absichern, damit imports aus src/ greifen
+# Pfad absichern, damit imports greifen
 root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
@@ -14,9 +14,9 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-from src.etl.importer import load_config, import_csv_data, validate_schema
-from src.etl.anonymizer import anonymize_dataframe
-from src.analytics.kpi_calculator import calculate_kpis
+from importer import load_config, import_csv_data, validate_schema
+from anonymizer import anonymize_dataframe
+from kpi_calculator import calculate_kpis
 
 
 def _get_output_path(output_filename: str) -> str:
@@ -29,24 +29,19 @@ def _get_output_path(output_filename: str) -> str:
 
 # 1. EXCEL EXPORT
 def export_to_excel(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.xlsx"):
-    """Exportiert Daten und KPIs in eine Excel-Datei mit mehreren Tabellenblättern."""
     output_path = _get_output_path(output_filename)
-    
     with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Verarbeitete_Daten", index=False)
-        
         summary_data = {
             "Metrik": ["Gesamtdatensätze", "Ø Durchlaufzeit gesamt (Tage)"],
             "Wert": [kpis["total_records"], kpis["overall_avg_duration"]]
         }
         pd.DataFrame(summary_data).to_excel(writer, sheet_name="KPI_Zusammenfassung", index=False)
-        
     print(f"[INFO] Excel-Bericht gespeichert unter: '{output_path}'")
 
 
 # 2. CSV EXPORT
 def export_to_csv(df: pd.DataFrame, output_filename: str = "pipeline_report.csv"):
-    """Exportiert die verarbeiteten Daten als CSV-Datei."""
     output_path = _get_output_path(output_filename)
     df.to_csv(output_path, index=False, encoding="utf-8-sig")
     print(f"[INFO] CSV-Datei gespeichert unter: '{output_path}'")
@@ -54,30 +49,16 @@ def export_to_csv(df: pd.DataFrame, output_filename: str = "pipeline_report.csv"
 
 # 3. JSON EXPORT
 def export_to_json(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.json"):
-    """Exportiert Daten und KPIs gemeinsam in eine strukturierte JSON-Datei."""
     output_path = _get_output_path(output_filename)
-    
-    payload = {
-        "kpis": kpis,
-        "data": df.to_dict(orient="records")
-    }
-    
+    payload = {"kpis": kpis, "data": df.to_dict(orient="records")}
     import json
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=4, ensure_ascii=False)
-        
     print(f"[INFO] JSON-Datei gespeichert unter: '{output_path}'")
 
 
 # 4. MANAGEMENT REPORT PDF EXPORT (Vorlagengetreu)
 def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.pdf"):
-    """
-    Generiert einen professionellen, mehrseitigen Management Report gemäß der Vorlage:
-    - 01 Executive Summary & KPI-Scorecard
-    - 02 Prozess-Effizienz & Engpass-Analyse nach Maßnahmentyp (inkl. Gestapeltem Bar-Chart)
-    - 03 Standort-Benchmarking (Regionaler Leistungsvergleich aller 7 Standorte)
-    - 04 Wirtschaftlichkeit & Kundenzufriedenheit (Kosten & Zufriedenheit nach Maßnahmentyp)
-    """
     output_path = _get_output_path(output_filename)
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
     os.makedirs(temp_dir, exist_ok=True)
@@ -89,7 +70,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             df_calc[col] = pd.to_numeric(df_calc[col], errors='coerce').fillna(0)
             
     df_calc['nacharbeit_bool'] = df_calc['nacharbeit_erforderlich'].astype(bool)
-    df_calc['bearb_tage'] = df_calc['bearbeitungszeit_std'] / 8.0  # Umrechnung auf Tage (à 8 Std.)
+    df_calc['bearb_tage'] = df_calc['bearbeitungszeit_std'] / 8.0  # Einheitennormalisierung auf Tage
     df_calc['flusseffizienz_pct'] = (df_calc['bearb_tage'] / df_calc['gesamtdurchlaufzeit_tage']) * 100
 
     total_records = len(df_calc)
@@ -100,7 +81,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     total_kosten = df_calc['kosten_eur'].sum()
     avg_satisfaction = df_calc['kundenzufriedenheit'].mean()
 
-    # --- Diagramm 1: Zeitzusammensetzung nach Maßnahmentyp (Stacked Bar Chart wie Vorlage) ---
+    # --- Diagramm 1: Zeitzusammensetzung nach Maßnahmentyp (Stacked Bar Chart) ---
     chart_path = os.path.join(temp_dir, "stacked_bar_chart.png")
     mass_agg = df_calc.groupby('massnahmetyp').agg(
         bearb_tage=('bearb_tage', 'mean'),
@@ -115,7 +96,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     
     plt.yticks(y_pos, mass_agg.index, fontsize=9)
     plt.xlabel('Tage (Ø pro Vorgang)', fontsize=9)
-    plt.title(f'Zeitzusammensetzung nach massnahmetyp (n = {total_records})', fontsize=11, fontweight='bold', pad=10)
+    plt.title(f'Zeitzusammensetzung nach Maßnahmentyp (n = {total_records})', fontsize=11, fontweight='bold', pad=10)
     plt.legend(loc='lower right', fontsize=8)
     
     for idx, row in enumerate(mass_agg.itertuples()):
@@ -126,6 +107,26 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     plt.grid(axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
     plt.savefig(chart_path, dpi=250)
+    plt.close()
+
+    # --- Diagramm 2: Kundenzufriedenheit nach Maßnahmentyp (Balkendiagramm) ---
+    bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
+    plt.figure(figsize=(6.5, 3.2))
+    sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
+    
+    bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.6)
+    plt.xlabel('Ø Kundenzufriedenheit (Sterne)', fontsize=10, fontweight='bold')
+    plt.title('Kundenzufriedenheit nach Maßnahmentyp', fontsize=12, fontweight='bold')
+    plt.xlim(0, 5.0)
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width:.2f} ★', 
+                 va='center', ha='left', fontsize=9, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig(bar_path, dpi=250)
     plt.close()
 
     # --- Document Setup ---
@@ -166,9 +167,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph(f"Berichtszeitraum: Q3/2026   |   Erstellt am: 10.11.2026   |   Verantwortlich: AutoData Pipeline   |   Volumen: {total_records} Vorgänge", sub_style))
     story.append(Spacer(1, 10))
 
-    # --- 01 EXECUTIVE SUMMARY & KPI-SCORECARD (Mit farbigen Ampel-Punkten) ---
+    # --- 01 EXECUTIVE SUMMARY & KPI-SCORECARD ---
     story.append(Paragraph("01  EXECUTIVE SUMMARY & KPI-SCORECARD", sec_heading))
-    story.append(Paragraph("Gesamtstatus über alle 7 Standorte (Berlin, Hamburg, München, Köln, Frankfurt, Stuttgart, Leipzig) und 6 Maßnahmentypen:", sub_style))
+    story.append(Paragraph("Gesamtstatus über alle 7 Standorte und 6 Maßnahmentypen:", sub_style))
     story.append(Spacer(1, 4))
 
     scorecard_headers = [
@@ -202,14 +203,12 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     text_exec = (
         f"Im Berichtszeitraum wurden <b>{total_records} Vorgänge</b> analysiert. Die durchschnittliche Gesamtdurchlaufzeit liegt mit <b>{avg_dur:.1f} Tagen</b> "
         f"voll im Zielbereich (≤ 12,0 Tage). Handlungsbedarf besteht bei der Flusseffizienz (aktuell <b>{avg_fluss:.1f}%</b>, Ziel ≥ 25%) sowie bei der "
-        f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet. Die durchschnittlichen Kosten pro Maßnahme liegen bei "
-        f"<b>{avg_kosten:.2f} €</b> bei einer Kundenzufriedenheit von <b>{avg_satisfaction:.1f} ★</b>."
+        f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet."
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
     story.append(Spacer(1, 10))
 
-    # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP ---
-    # (Hier KEIN PageBreak, damit Sektion 02 direkt nach Sektion 01 folgt)
+    # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE ---
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
     story.append(Paragraph("Gegenüberstellung von wertschöpfender Bearbeitungszeit (Std.), Liegezeit (Tage) sowie Kosten- und Qualitätswirkung:", sub_style))
     story.append(Spacer(1, 4))
@@ -225,26 +224,18 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     ).reset_index()
 
     p_headers = [
-        Paragraph("Maßnahmentyp", tbl_header),
-        Paragraph("Anzahl", tbl_header),
-        Paragraph("Ø Bearb.-zeit (Std.)", tbl_header),
-        Paragraph("Ø Liegezeit (Tage)", tbl_header),
-        Paragraph("Ø Durchlaufzeit (Tage)", tbl_header),
-        Paragraph("Nacharbeit (%)", tbl_header),
-        Paragraph("Ø Kosten (€)", tbl_header),
-        Paragraph("Kunden-zufriedenheit (Ø ★)", tbl_header)
+        Paragraph("Maßnahmentyp", tbl_header), Paragraph("Anzahl", tbl_header),
+        Paragraph("Ø Bearb.-zeit (Std.)", tbl_header), Paragraph("Ø Liegezeit (Tage)", tbl_header),
+        Paragraph("Ø Durchlaufzeit (Tage)", tbl_header), Paragraph("Nacharbeit (%)", tbl_header),
+        Paragraph("Ø Kosten (€)", tbl_header), Paragraph("Kunden-zufriedenheit (Ø ★)", tbl_header)
     ]
     p_rows = [p_headers]
     for r in mass_df.itertuples():
         p_rows.append([
-            Paragraph(str(r.massnahmetyp), tbl_cell_left),
-            Paragraph(str(r.Anzahl), tbl_cell),
-            Paragraph(f"{r.Bearb_Std:.1f}", tbl_cell),
-            Paragraph(f"{r.Liegezeit:.1f}", tbl_cell),
-            Paragraph(f"{r.Durchlauf:.1f}", tbl_cell),
-            Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell),
-            Paragraph(f"{r.Kosten:.2f} €", tbl_cell),
-            Paragraph(f"{r.Zufried:.1f} ★", tbl_cell)
+            Paragraph(str(r.massnahmetyp), tbl_cell_left), Paragraph(str(r.Anzahl), tbl_cell),
+            Paragraph(f"{r.Bearb_Std:.1f}", tbl_cell), Paragraph(f"{r.Liegezeit:.1f}", tbl_cell),
+            Paragraph(f"{r.Durchlauf:.1f}", tbl_cell), Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell),
+            Paragraph(f"{r.Kosten:.2f} €", tbl_cell), Paragraph(f"{r.Zufried:.1f} ★", tbl_cell)
         ])
     p_rows.append([
         Paragraph("GESAMT / Ø", ParagraphStyle('Bld', parent=tbl_cell_left, fontName='Helvetica-Bold')),
@@ -267,7 +258,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     ]))
     story.append(t_p)
     story.append(Spacer(1, 6))
-
     story.append(Image(chart_path, width=520, height=210))
     story.append(Spacer(1, 6))
 
@@ -283,52 +273,33 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     )
     story.append(make_fazit_box("PROZESS-EFFIZIENZ", text_prozess))
     
-    # HIER kommt der saubere Umbruch, damit Sektion 03 frisch auf Seite 3 startet!
+    # Sauberer Umbruch für Sektion 3 & 4
     story.append(PageBreak())
 
-    # --- 03 STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH) ---
+    # --- 03 STANDORT-BENCHMARKING ---
     story.append(Paragraph("03  STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH)", sec_heading))
-    story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices und operativem Unterstützungsbedarf:", sub_style))
-    story.append(Spacer(1, 4))
-
-    # --- 03 STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH) ---
-    story.append(Paragraph("03  STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH)", sec_heading))
-    story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices und operativem Unterstützungsbedarf:", sub_style))
+    story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices:", sub_style))
     story.append(Spacer(1, 4))
 
     st_df = df_calc.groupby('standort').agg(
-        Volumen=('id', 'count'),
-        Bearb_Std=('bearbeitungszeit_std', 'mean'),
-        Liegezeit=('liegezeit_tage', 'mean'),
-        Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
-        Flusseffizienz=('flusseffizienz_pct', 'mean'),
-        Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
-        Kosten=('kosten_eur', 'mean'),
-        Zufried=('kundenzufriedenheit', 'mean')
+        Volumen=('id', 'count'), Bearb_Std=('bearbeitungszeit_std', 'mean'),
+        Liegezeit=('liegezeit_tage', 'mean'), Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
+        Flusseffizienz=('flusseffizienz_pct', 'mean'), Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
+        Kosten=('kosten_eur', 'mean'), Zufried=('kundenzufriedenheit', 'mean')
     ).reset_index()
 
     st_headers = [
-        Paragraph("Standort", tbl_header),
-        Paragraph("Volumen", tbl_header),
-        Paragraph("Ø Bearb.-zeit", tbl_header),
-        Paragraph("Ø Liegezeit", tbl_header),
-        Paragraph("Ø Durchlaufzeit", tbl_header),
-        Paragraph("Flusseffi.-zienz (%)", tbl_header),
-        Paragraph("Nacharbeit (%)", tbl_header),
-        Paragraph("Ø Kosten (€)", tbl_header),
-        Paragraph("Zufriedenheit", tbl_header)
+        Paragraph("Standort", tbl_header), Paragraph("Volumen", tbl_header), Paragraph("Ø Bearb.-zeit", tbl_header),
+        Paragraph("Ø Liegezeit", tbl_header), Paragraph("Ø Durchlaufzeit", tbl_header), Paragraph("Flusseffi.-zienz (%)", tbl_header),
+        Paragraph("Nacharbeit (%)", tbl_header), Paragraph("Ø Kosten (€)", tbl_header), Paragraph("Zufriedenheit", tbl_header)
     ]
     st_rows = [st_headers]
     for r in st_df.itertuples():
         st_rows.append([
-            Paragraph(str(r.standort), tbl_cell_left),
-            Paragraph(str(r.Volumen), tbl_cell),
-            Paragraph(f"{r.Bearb_Std:.1f} h", tbl_cell),
-            Paragraph(f"{r.Liegezeit:.1f} T", tbl_cell),
-            Paragraph(f"{r.Durchlauf:.1f} T", tbl_cell),
-            Paragraph(f"{r.Flusseffizienz:.1f}%", tbl_cell),
-            Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell),
-            Paragraph(f"{r.Kosten:.2f} €", tbl_cell),
+            Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
+            Paragraph(f"{r.Bearb_Std:.1f} h", tbl_cell), Paragraph(f"{r.Liegezeit:.1f} T", tbl_cell),
+            Paragraph(f"{r.Durchlauf:.1f} T", tbl_cell), Paragraph(f"{r.Flusseffizienz:.1f}%", tbl_cell),
+            Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell), Paragraph(f"{r.Kosten:.2f} €", tbl_cell),
             Paragraph(f"{r.Zufried:.1f} ★", tbl_cell)
         ])
     st_rows.append([
@@ -361,7 +332,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     text_standort = (
         f"Im Standortvergleich glänzt <b>'{best_st}'</b> als Best-Practice-Standort mit der höchsten Flusseffizienz von <b>{best_st_val:.1f}%</b>. "
-        f"Operativer Unterstützungsbedarf besteht hingegen am Standort <b>'{worst_st}'</b>, der eine durchschnittliche Liegezeit von <b>{worst_st_val:.1f} Tagen</b> aufweist."
+        f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{worst_st_val:.1f} Tage</b>)."
     )
     story.append(make_fazit_box("STANDORT-BENCHMARKING", text_standort))
     story.append(Spacer(1, 10))
@@ -372,24 +343,19 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 4))
 
     w_headers = [
-        Paragraph("Standort", tbl_header),
-        Paragraph("Volumen (Anzahl)", tbl_header),
-        Paragraph("Gesamtkosten (€)", tbl_header),
-        Paragraph("Nacharbeitsquote (%)", tbl_header)
+        Paragraph("Standort", tbl_header), Paragraph("Volumen (Anzahl)", tbl_header),
+        Paragraph("Gesamtkosten (€)", tbl_header), Paragraph("Nacharbeitsquote (%)", tbl_header)
     ]
     w_rows = [w_headers]
     st_w = df_calc.groupby('standort').agg(
-        Volumen=('id', 'count'),
-        Gesamtkosten=('kosten_eur', 'sum'),
+        Volumen=('id', 'count'),Gesamtkosten=('kosten_eur', 'sum'),
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
     for r in st_w.itertuples():
         w_rows.append([
-            Paragraph(str(r.standort), tbl_cell_left),
-            Paragraph(str(r.Volumen), tbl_cell),
-            Paragraph(f"{r.Gesamtkosten:,.2f} €", tbl_cell),
-            Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell)
+            Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
+            Paragraph(f"{r.Gesamtkosten:,.2f} €", tbl_cell), Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell)
         ])
     w_rows.append([
         Paragraph("GESAMT / Ø", ParagraphStyle('Bld', parent=tbl_cell_left, fontName='Helvetica-Bold')),
@@ -414,31 +380,12 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     text_wirt = (
         f"Die Gesamtkosten belaufen sich im Berichtszeitraum auf <b>{total_kosten:,.2f} €</b>. Der Standort mit dem höchsten Kostenvolumen ist "
-        f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>. Die Kundenzufriedenheit steht in direktem Zusammenhang mit schnellen Durchlaufzeiten."
+        f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
-
-    # --- Diagramm 2: Kundenzufriedenheit nach Maßnahmentyp (Bar Chart für Sektion 04) ---
-    bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
-    plt.figure(figsize=(6.5, 3.2))
-    sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
-    
-    bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.6)
-    plt.xlabel('Ø Kundenzufriedenheit (Sterne)', fontsize=10, fontweight='bold')
-    plt.title('Kundenzufriedenheit nach Maßnahmentyp', fontsize=12, fontweight='bold')
-    plt.xlim(0, 5.0)
-    plt.grid(axis='x', linestyle='--', alpha=0.7)
-
-    for bar in bars:
-        width = bar.get_width()
-        plt.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width:.2f} ★', 
-                 va='center', ha='left', fontsize=9, fontweight='bold')
-
-    plt.tight_layout()
-    plt.savefig(bar_path, dpi=250)
-    plt.close()
-
     story.append(Spacer(1, 8))
+
+    # Kundenzufriedenheits-Balkendiagramm am Ende (Sektion 04)
     story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
     story.append(Spacer(1, 4))
     story.append(Image(bar_path, width=380, height=175))
@@ -453,10 +400,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
 # ALL-IN-ONE EXPORTER ROUTER
 def export_data(df: pd.DataFrame, kpis: dict, fmt: str = "excel", filename: str = None):
-    """
-    Zentraler Einstiegspunkt für den Datenexport.
-    Unterstützt die Formate: 'excel', 'csv', 'json', 'pdf'.
-    """
     fmt = fmt.lower()
     if fmt == "excel":
         export_to_excel(df, kpis, filename or "pipeline_report.xlsx")
@@ -467,13 +410,12 @@ def export_data(df: pd.DataFrame, kpis: dict, fmt: str = "excel", filename: str 
     elif fmt == "pdf":
         export_to_pdf(df, kpis, filename or "pipeline_report.pdf")
     else:
-        raise ValueError(f"Nicht unterstütztes Export-Format: '{fmt}'. Erlaubt: excel, csv, json, pdf")
+        raise ValueError(f"Nicht unterstütztes Export-Format: '{fmt}'")
 
 
 if __name__ == "__main__":
     config = load_config()
     sample_file = os.path.join(config["paths"]["raw_data_dir"], "sample_operations.csv")
-    
     df = import_csv_data(sample_file)
     df = validate_schema(df)
     df_anon = anonymize_dataframe(df)
