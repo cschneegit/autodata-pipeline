@@ -282,7 +282,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>{min_durchlauf_val:.1f} Tagen</b>."
     )
     story.append(make_fazit_box("PROZESS-EFFIZIENZ", text_prozess))
-    story.append(PageBreak())
 
     # --- 03 STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH) ---
     story.append(Paragraph("03  STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH)", sec_heading))
