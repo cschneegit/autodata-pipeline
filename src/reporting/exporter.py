@@ -76,7 +76,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     - 01 Executive Summary & KPI-Scorecard
     - 02 Prozess-Effizienz & Engpass-Analyse nach Maßnahmentyp (inkl. Gestapeltem Bar-Chart)
     - 03 Standort-Benchmarking (Regionaler Leistungsvergleich aller 7 Standorte)
-    - 04 Wirtschaftlichkeit & Kundenzufriedenheit (Kosten & Zufriedenheit)
+    - 04 Wirtschaftlichkeit & Kundenzufriedenheit (Kosten & Zufriedenheit nach Maßnahmentyp)
     """
     output_path = _get_output_path(output_filename)
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
@@ -89,7 +89,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             df_calc[col] = pd.to_numeric(df_calc[col], errors='coerce').fillna(0)
             
     df_calc['nacharbeit_bool'] = df_calc['nacharbeit_erforderlich'].astype(bool)
-    df_calc['bearb_tage'] = df_calc['bearbeitungszeit_std'] / 8.0
+    df_calc['bearb_tage'] = df_calc['bearbeitungszeit_std'] / 8.0  # Umrechnung auf Tage (à 8 Std.)
     df_calc['flusseffizienz_pct'] = (df_calc['bearb_tage'] / df_calc['gesamtdurchlaufzeit_tage']) * 100
 
     total_records = len(df_calc)
@@ -166,7 +166,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph(f"Berichtszeitraum: Q3/2026   |   Erstellt am: 10.11.2026   |   Verantwortlich: AutoData Pipeline   |   Volumen: {total_records} Vorgänge", sub_style))
     story.append(Spacer(1, 10))
 
-    # --- 01 EXECUTIVE SUMMARY & KPI-SCORECARD ---
+    # --- 01 EXECUTIVE SUMMARY & KPI-SCORECARD (Mit farbigen Ampel-Punkten) ---
     story.append(Paragraph("01  EXECUTIVE SUMMARY & KPI-SCORECARD", sec_heading))
     story.append(Paragraph("Gesamtstatus über alle 7 Standorte (Berlin, Hamburg, München, Köln, Frankfurt, Stuttgart, Leipzig) und 6 Maßnahmentypen:", sub_style))
     story.append(Spacer(1, 4))
@@ -181,11 +181,11 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     
     sc_rows = [
         scorecard_headers,
-        [Paragraph("Ø Gesamtdurchlaufzeit", tbl_cell_left), Paragraph(f"{avg_dur:.1f} Tage", tbl_cell), Paragraph(f"{avg_dur*1.04:.1f} Tage", tbl_cell), Paragraph("≤ 12,0 Tage", tbl_cell), Paragraph("OK", tbl_cell)],
-        [Paragraph("Ø Flusseffizienz (Bearb.- vs. Liegezeit)", tbl_cell_left), Paragraph(f"{avg_fluss:.1f} %", tbl_cell), Paragraph(f"{avg_fluss*0.95:.1f} %", tbl_cell), Paragraph("≥ 25,0 %", tbl_cell), Paragraph("REVIEW", tbl_cell)],
-        [Paragraph("Nacharbeitsquote", tbl_cell_left), Paragraph(f"{nacharbeit_pct:.1f} %", tbl_cell), Paragraph(f"{nacharbeit_pct*1.08:.1f} %", tbl_cell), Paragraph("≤ 8,0 %", tbl_cell), Paragraph("ATTN", tbl_cell)],
-        [Paragraph("Ø Kosten pro Maßnahme", tbl_cell_left), Paragraph(f"{avg_kosten:.2f} €", tbl_cell), Paragraph(f"{avg_kosten*0.98:.2f} €", tbl_cell), Paragraph("≤ 1.150 €", tbl_cell), Paragraph("OK", tbl_cell)],
-        [Paragraph("Kundenzufriedenheit", tbl_cell_left), Paragraph(f"{avg_satisfaction:.1f} ★", tbl_cell), Paragraph(f"{avg_satisfaction*0.97:.1f} ★", tbl_cell), Paragraph("≥ 4,2 ★", tbl_cell), Paragraph("REVIEW", tbl_cell)]
+        [Paragraph("Ø Gesamtdurchlaufzeit", tbl_cell_left), Paragraph(f"{avg_dur:.1f} Tage", tbl_cell), Paragraph(f"{avg_dur*1.04:.1f} Tage", tbl_cell), Paragraph("≤ 12,0 Tage", tbl_cell), Paragraph('<font color="#2ecc71">●</font> im Plan', tbl_cell)],
+        [Paragraph("Ø Flusseffizienz (Bearb.- vs. Liegezeit)", tbl_cell_left), Paragraph(f"{avg_fluss:.1f} %", tbl_cell), Paragraph(f"{avg_fluss*0.95:.1f} %", tbl_cell), Paragraph("≥ 25,0 %", tbl_cell), Paragraph('<font color="#f1c40f">●</font> Achtung', tbl_cell)],
+        [Paragraph("Nacharbeitsquote", tbl_cell_left), Paragraph(f"{nacharbeit_pct:.1f} %", tbl_cell), Paragraph(f"{nacharbeit_pct*1.08:.1f} %", tbl_cell), Paragraph("≤ 8,0 %", tbl_cell), Paragraph('<font color="#e74c3c">●</font> Kritisch', tbl_cell)],
+        [Paragraph("Ø Kosten pro Maßnahme", tbl_cell_left), Paragraph(f"{avg_kosten:.2f} €", tbl_cell), Paragraph(f"{avg_kosten*0.98:.2f} €", tbl_cell), Paragraph("≤ 1.150 €", tbl_cell), Paragraph('<font color="#2ecc71">●</font> im Plan', tbl_cell)],
+        [Paragraph("Kundenzufriedenheit", tbl_cell_left), Paragraph(f"{avg_satisfaction:.1f} ★", tbl_cell), Paragraph(f"{avg_satisfaction*0.97:.1f} ★", tbl_cell), Paragraph("≥ 4,2 ★", tbl_cell), Paragraph('<font color="#f1c40f">●</font> Achtung', tbl_cell)]
     ]
     
     t_sc = Table(sc_rows, colWidths=[180, 85, 85, 90, 80])
@@ -373,7 +373,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     st_w = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'),
         Gesamtkosten=('kosten_eur', 'sum'),
-        # Lambda-Funktion zur Berechnung der Nacharbeitsquote in Prozent
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
@@ -405,42 +404,42 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     max_cost_st = st_w.loc[st_w['Gesamtkosten'].idxmax(), 'standort']
     max_cost_val = st_w['Gesamtkosten'].max()
 
-    # --- Diagramm 2: Kundenzufriedenheitsverteilung (Pie Chart für Sektion 04) ---
-    pie_path = os.path.join(temp_dir, "satisfaction_pie.png")
-    plt.figure(figsize=(6.5, 3.0))
-    satisfaction_counts = df_calc['kundenzufriedenheit'].value_counts().sort_index()
-    
-    colors_pie = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71', '#3498db']
-    plt.pie(
-        satisfaction_counts, 
-        labels=[f"{stars} ★" for stars in satisfaction_counts.index], 
-        autopct='%1.1f%%', 
-        startangle=140, 
-        colors=colors_pie[:len(satisfaction_counts)],
-        textprops={'fontsize': 8}
-    )
-    plt.title('Kundenzufriedenheitsverteilung (Sterne)', fontsize=10, fontweight='bold')
-    plt.tight_layout()
-    plt.savefig(pie_path, dpi=250)
-    plt.close()
-
     text_wirt = (
         f"Die Gesamtkosten belaufen sich im Berichtszeitraum auf <b>{total_kosten:,.2f} €</b>. Der Standort mit dem höchsten Kostenvolumen ist "
         f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>. Die Kundenzufriedenheit steht in direktem Zusammenhang mit schnellen Durchlaufzeiten."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
 
-    # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
+    # --- Diagramm 2: Kundenzufriedenheit nach Maßnahmentyp (Bar Chart für Sektion 04) ---
+    bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
+    plt.figure(figsize=(6.5, 3.2))
+    sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
+    
+    bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.6)
+    plt.xlabel('Ø Kundenzufriedenheit (Sterne)', fontsize=10, fontweight='bold')
+    plt.title('Kundenzufriedenheit nach Maßnahmentyp', fontsize=12, fontweight='bold')
+    plt.xlim(0, 5.0)
+    plt.grid(axis='x', linestyle='--', alpha=0.7)
+
+    for bar in bars:
+        width = bar.get_width()
+        plt.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width:.2f} ★', 
+                 va='center', ha='left', fontsize=9, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig(bar_path, dpi=250)
+    plt.close()
+
     story.append(Spacer(1, 8))
-    story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber:</b>", sub_style))
+    story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
     story.append(Spacer(1, 4))
-    story.append(Image(pie_path, width=380, height=175))
+    story.append(Image(bar_path, width=380, height=175))
     story.append(Spacer(1, 6))
 
     doc.build(story)
     
     if os.path.exists(chart_path): os.remove(chart_path)
-    if os.path.exists(pie_path): os.remove(pie_path)
+    if os.path.exists(bar_path): os.remove(bar_path)
     print(f"[INFO] Management-Report PDF erfolgreich generiert unter: '{output_path}'")
 
 
@@ -473,7 +472,4 @@ if __name__ == "__main__":
     kpis = calculate_kpis(df_anon)
     
     print("\n--- Starte Multi-Format Export Test ---")
-    export_data(df_anon, kpis, fmt="excel")
-    export_data(df_anon, kpis, fmt="csv")
-    export_data(df_anon, kpis, fmt="json")
     export_data(df_anon, kpis, fmt="pdf")
