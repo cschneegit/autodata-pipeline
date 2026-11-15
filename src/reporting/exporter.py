@@ -18,7 +18,7 @@ from src.etl.importer import load_config, import_csv_data, validate_schema
 from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
 
-
+# Hilfsfunktion, um den Ausgabeordner zu erstellen und den vollständigen Pfad zu generieren
 def _get_output_path(output_filename: str) -> str:
     config = load_config()
     processed_dir = config["paths"]["processed_data_dir"]
@@ -215,6 +215,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'),
         Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
+        # lambda-Funktion für Nacharbeitsquote in Prozent
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
         Kosten=('kosten_eur', 'mean'),
         Zufried=('kundenzufriedenheit', 'mean')
@@ -278,6 +279,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices:", sub_style))
     story.append(Spacer(1, 3))
 
+    # Standort-Benchmarking-Tabelle
     st_df = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'), Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'), Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
@@ -311,6 +313,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Paragraph(f"{avg_satisfaction:.1f} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
+    # Spaltenbreiten exakt auf A4 (534 pt Gesamtbreite) angepasst
     t_st = Table(st_rows, colWidths=[70, 45, 60, 55, 65, 60, 55, 65, 59])
     t_st.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
@@ -349,6 +352,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
+    # itertuples() für bessere Performance bei großen DataFrames
     for r in st_w.itertuples():
         w_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
