@@ -209,6 +209,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 10))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP ---
+    story.append(PageBreak())
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
     story.append(Paragraph("Gegenüberstellung von wertschöpfender Bearbeitungszeit (Std.), Liegezeit (Tage) sowie Kosten- und Qualitätswirkung:", sub_style))
     story.append(Spacer(1, 4))
