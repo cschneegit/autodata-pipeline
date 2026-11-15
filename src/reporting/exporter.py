@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-# Pfad absichern, damit imports aus src/ greifen
+# Pfad absichern, damit imports greifen
 root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
@@ -56,7 +56,7 @@ def export_to_json(df: pd.DataFrame, kpis: dict, output_filename: str = "pipelin
     print(f"[INFO] JSON-Datei gespeichert unter: '{output_path}'")
 
 
-# 4. MANAGEMENT REPORT PDF EXPORT (Kompakt & Vollständig inkl. Rohdaten)
+# 4. MANAGEMENT REPORT PDF EXPORT (Kompakt & Vollständig inkl. Rohdaten mit Namen)
 def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.pdf"):
     output_path = _get_output_path(output_filename)
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
@@ -80,7 +80,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     total_kosten = df_calc['kosten_eur'].sum()
     avg_satisfaction = df_calc['kundenzufriedenheit'].mean()
 
-    # --- Diagramm 1: Zeitzusammensetzung (Kompakter dimensioniert) ---
+    # --- Diagramm 1: Zeitzusammensetzung ---
     chart_path = os.path.join(temp_dir, "stacked_bar_chart.png")
     mass_agg = df_calc.groupby('massnahmetyp').agg(
         bearb_tage=('bearb_tage', 'mean'),
@@ -387,29 +387,31 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Image(bar_path, width=360, height=150))
     story.append(Spacer(1, 6))
 
-    # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Alle 250 Datensätze) ---
+    # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Alle 250 Datensätze mit Name) ---
     story.append(PageBreak())
     story.append(Paragraph("05  ANHANG: VOLLSTÄNDIGE ANONYMISIERTE PROZESSDATEN", sec_heading))
-    story.append(Paragraph(f"Vollständige Liste aller verarbeiteten Vorgänge (n = {total_records}), wie im Streamlit-Dashboard dargestellt:", sub_style))
+    story.append(Paragraph(f"Vollständige Liste aller verarbeiteten Vorgänge inkl. anonymisierter Namen (n = {total_records}), wie im Streamlit-Dashboard dargestellt:", sub_style))
     story.append(Spacer(1, 4))
 
-    # Tabelle für Rohdaten aufbauen (wählt die wichtigsten Spalten aus df)
+    # Tabellen-Header inkl. Name-Spalte
     raw_headers = [
         Paragraph("ID", tbl_header),
+        Paragraph("Name", tbl_header),
         Paragraph("Standort", tbl_header),
         Paragraph("Typ", tbl_header),
-        Paragraph("Bearb. (Std)", tbl_header),
-        Paragraph("Liegezeit (T)", tbl_header),
-        Paragraph("Durchlauf (T)", tbl_header),
+        Paragraph("Bearb.(Std)", tbl_header),
+        Paragraph("Liege(T)", tbl_header),
+        Paragraph("Durchl.(T)", tbl_header),
         Paragraph("Kosten (€)", tbl_header),
-        Paragraph("Zufried.", tbl_header)
+        Paragraph("Zuf.", tbl_header)
     ]
     raw_rows = [raw_headers]
 
-    # Iteration über alle Zeilen des anonymisierten DataFrames
+    # Befüllung über alle 250 Zeilen
     for r in df_calc.itertuples():
         raw_rows.append([
             Paragraph(str(getattr(r, 'id', '-')), tbl_cell),
+            Paragraph(str(getattr(r, 'name', '-')), tbl_cell_left),
             Paragraph(str(getattr(r, 'standort', '-')), tbl_cell_left),
             Paragraph(str(getattr(r, 'massnahmetyp', '-')), tbl_cell_left),
             Paragraph(f"{getattr(r, 'bearbeitungszeit_std', 0):.1f}", tbl_cell),
@@ -419,7 +421,8 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             Paragraph(f"{getattr(r, 'kundenzufriedenheit', 0):.1f} ★", tbl_cell)
         ])
 
-    t_raw = Table(raw_rows, colWidths=[40, 75, 95, 60, 65, 65, 75, 59], repeatRows=1)
+    # Spaltenbreiten exakt auf A4 (534 pt Gesamtbreite) aufgeteilt
+    t_raw = Table(raw_rows, colWidths=[35, 85, 65, 85, 50, 45, 50, 65, 54], repeatRows=1)
     t_raw.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
@@ -433,7 +436,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     
     if os.path.exists(chart_path): os.remove(chart_path)
     if os.path.exists(bar_path): os.remove(bar_path)
-    print(f"[INFO] Management-Report PDF erfolgreich generiert (inkl. Rohdaten) unter: '{output_path}'")
+    print(f"[INFO] Management-Report PDF erfolgreich generiert (inkl. Namen & Rohdaten) unter: '{output_path}'")
 
 
 # ALL-IN-ONE EXPORTER ROUTER
