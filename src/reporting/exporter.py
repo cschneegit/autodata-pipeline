@@ -209,7 +209,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 10))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP ---
-    story.append(PageBreak())
+    # (Hier KEIN PageBreak, damit Sektion 02 direkt nach Sektion 01 folgt)
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
     story.append(Paragraph("Gegenüberstellung von wertschöpfender Bearbeitungszeit (Std.), Liegezeit (Tage) sowie Kosten- und Qualitätswirkung:", sub_style))
     story.append(Spacer(1, 4))
@@ -282,6 +282,14 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>{min_durchlauf_val:.1f} Tagen</b>."
     )
     story.append(make_fazit_box("PROZESS-EFFIZIENZ", text_prozess))
+    
+    # HIER kommt der saubere Umbruch, damit Sektion 03 frisch auf Seite 3 startet!
+    story.append(PageBreak())
+
+    # --- 03 STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH) ---
+    story.append(Paragraph("03  STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH)", sec_heading))
+    story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices und operativem Unterstützungsbedarf:", sub_style))
+    story.append(Spacer(1, 4))
 
     # --- 03 STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH) ---
     story.append(Paragraph("03  STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH)", sec_heading))
