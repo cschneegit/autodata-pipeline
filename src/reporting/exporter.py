@@ -56,7 +56,7 @@ def export_to_json(df: pd.DataFrame, kpis: dict, output_filename: str = "pipelin
     print(f"[INFO] JSON-Datei gespeichert unter: '{output_path}'")
 
 
-# 4. MANAGEMENT REPORT PDF EXPORT (Kompakt & Vollständig inkl. Rohdaten mit Namen)
+# 4. MANAGEMENT REPORT PDF EXPORT (Vollständig inkl. E-Mail & Telefon im Anhang)
 def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline_report.pdf"):
     output_path = _get_output_path(output_filename)
     temp_dir = os.path.join(os.path.dirname(output_path), "temp_assets")
@@ -144,9 +144,10 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     sub_style = ParagraphStyle('ReportSub', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor('#555555'))
     sec_heading = ParagraphStyle('SecHeading', parent=styles['Heading2'], fontSize=11, leading=14, textColor=HEADER_COLOR, fontName='Helvetica-Bold', spaceBefore=10, spaceAfter=4)
     box_text = ParagraphStyle('BoxText', parent=styles['Normal'], fontSize=8.5, leading=12, textColor=colors.HexColor('#1a1a1a'))
-    tbl_cell = ParagraphStyle('TblCell', parent=styles['Normal'], fontSize=7.5, leading=9.5, alignment=1)
-    tbl_cell_left = ParagraphStyle('TblCellLeft', parent=styles['Normal'], fontSize=7.5, leading=9.5, alignment=0)
-    tbl_header = ParagraphStyle('TblHeader', parent=styles['Normal'], fontSize=7.5, leading=9.5, alignment=1, textColor=colors.white, fontName='Helvetica-Bold')
+    
+    tbl_cell = ParagraphStyle('TblCell', parent=styles['Normal'], fontSize=6.5, leading=8.5, alignment=1)
+    tbl_cell_left = ParagraphStyle('TblCellLeft', parent=styles['Normal'], fontSize=6.5, leading=8.5, alignment=0)
+    tbl_header = ParagraphStyle('TblHeader', parent=styles['Normal'], fontSize=7, leading=9, alignment=1, textColor=colors.white, fontName='Helvetica-Bold')
 
     def make_fazit_box(title, text):
         html = f"<b>MANAGEMENT-FAZIT (KERNAUSSAGEN) – {title}</b><br/>{text}"
@@ -387,16 +388,18 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Image(bar_path, width=360, height=150))
     story.append(Spacer(1, 6))
 
-    # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Alle 250 Datensätze mit Name) ---
+    # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Inkl. Name, E-Mail & Telefon) ---
     story.append(PageBreak())
     story.append(Paragraph("05  ANHANG: VOLLSTÄNDIGE ANONYMISIERTE PROZESSDATEN", sec_heading))
-    story.append(Paragraph(f"Vollständige Liste aller verarbeiteten Vorgänge inkl. anonymisierter Namen (n = {total_records}), wie im Streamlit-Dashboard dargestellt:", sub_style))
+    story.append(Paragraph(f"Vollständige Liste aller verarbeiteten Vorgänge inkl. Name, E-Mail und Telefon (n = {total_records}), wie im Streamlit-Dashboard dargestellt:", sub_style))
     story.append(Spacer(1, 4))
 
-    # Tabellen-Header inkl. Name-Spalte
+    # Tabellen-Header inkl. E-Mail und Telefon
     raw_headers = [
         Paragraph("ID", tbl_header),
         Paragraph("Name", tbl_header),
+        Paragraph("E-Mail", tbl_header),
+        Paragraph("Telefon", tbl_header),
         Paragraph("Standort", tbl_header),
         Paragraph("Typ", tbl_header),
         Paragraph("Bearb.(Std)", tbl_header),
@@ -412,6 +415,8 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         raw_rows.append([
             Paragraph(str(getattr(r, 'id', '-')), tbl_cell),
             Paragraph(str(getattr(r, 'name', '-')), tbl_cell_left),
+            Paragraph(str(getattr(r, 'email', '-')), tbl_cell_left),
+            Paragraph(str(getattr(r, 'telefon', '-')), tbl_cell_left),
             Paragraph(str(getattr(r, 'standort', '-')), tbl_cell_left),
             Paragraph(str(getattr(r, 'massnahmetyp', '-')), tbl_cell_left),
             Paragraph(f"{getattr(r, 'bearbeitungszeit_std', 0):.1f}", tbl_cell),
@@ -421,8 +426,8 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             Paragraph(f"{getattr(r, 'kundenzufriedenheit', 0):.1f} ★", tbl_cell)
         ])
 
-    # Spaltenbreiten exakt auf A4 (534 pt Gesamtbreite) aufgeteilt
-    t_raw = Table(raw_rows, colWidths=[35, 85, 65, 85, 50, 45, 50, 65, 54], repeatRows=1)
+    # Spaltenbreiten exakt auf A4 (534 pt Gesamtbreite) angepasst
+    t_raw = Table(raw_rows, colWidths=[28, 65, 85, 60, 48, 62, 35, 30, 30, 52, 39], repeatRows=1)
     t_raw.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
@@ -436,7 +441,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     
     if os.path.exists(chart_path): os.remove(chart_path)
     if os.path.exists(bar_path): os.remove(bar_path)
-    print(f"[INFO] Management-Report PDF erfolgreich generiert (inkl. Namen & Rohdaten) unter: '{output_path}'")
+    print(f"[INFO] Management-Report PDF erfolgreich generiert (inkl. E-Mail & Telefon) unter: '{output_path}'")
 
 
 # ALL-IN-ONE EXPORTER ROUTER
