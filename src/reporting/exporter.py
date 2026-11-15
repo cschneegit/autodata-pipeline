@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-# Pfad absichern, damit imports greifen
+# Pfad absichern, damit imports aus src/ greifen
 root_dir = Path(__file__).resolve().parent.parent.parent
 if str(root_dir) not in sys.path:
     sys.path.append(str(root_dir))
@@ -14,9 +14,9 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-from importer import load_config, import_csv_data, validate_schema
-from anonymizer import anonymize_dataframe
-from kpi_calculator import calculate_kpis
+from src.etl.importer import load_config, import_csv_data, validate_schema
+from src.etl.anonymizer import anonymize_dataframe
+from src.analytics.kpi_calculator import calculate_kpis
 
 
 def _get_output_path(output_filename: str) -> str:
