@@ -108,9 +108,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     plt.savefig(chart_path, dpi=220)
     plt.close()
 
-    # --- Diagramm 2: Kundenzufriedenheit ---
+    # --- Diagramm 2: Kundenzufriedenheit (Größere Darstellung) ---
     bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
-    plt.figure(figsize=(6.5, 2.6))
+    plt.figure(figsize=(7.2, 3.0))
     sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
     
     bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.55)
@@ -215,7 +215,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'),
         Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
-        # lambda-Funktion für Nacharbeitsquote in Prozent
+        #lambda x: (x.sum()/len(x))*100 berechnet den Prozentsatz der Nacharbeit
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
         Kosten=('kosten_eur', 'mean'),
         Zufried=('kundenzufriedenheit', 'mean')
@@ -255,7 +255,11 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_p)
-    story.append(Spacer(1, 4))
+    
+    # 1. ÄNDERUNG: Sauberer Abstand und PageBreak vor dem Diagramm in Sektion 02
+    story.append(Spacer(1, 8))
+    story.append(PageBreak())
+
     story.append(Image(chart_path, width=510, height=185))
     story.append(Spacer(1, 4))
 
@@ -279,7 +283,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices:", sub_style))
     story.append(Spacer(1, 3))
 
-    # Standort-Benchmarking-Tabelle
+    # Standort-Benchmarking Tabelle
     st_df = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'), Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'), Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
@@ -384,12 +388,25 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
+    story.append(Spacer(1, 6))
+
+    # 2. ÄNDERUNG: Größeres Kundenzufriedenheits-Diagramm + eigenes Management-Fazit
+    story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
+    story.append(Spacer(1, 3))
+    story.append(Image(bar_path, width=510, height=210))
     story.append(Spacer(1, 4))
 
-    # Kundenzufriedenheits-Balkendiagramm
-    story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
-    story.append(Spacer(1, 2))
-    story.append(Image(bar_path, width=360, height=150))
+    best_sat_typ = sat_by_measure.idxmax()
+    best_sat_val = sat_by_measure.max()
+    worst_sat_typ = sat_by_measure.idmin()
+    worst_sat_val = sat_by_measure.min()
+
+    text_sat = (
+        f"Die Kundenzufriedenheit zeigt über alle Maßnahmentypen hinweg ein stabiles Niveau mit einem Durchschnitt von <b>{avg_satisfaction:.1f} ★</b>. "
+        f"Spitzenreiter ist <b>'{best_sat_typ}'</b> mit <b>{best_sat_val:.2f} Sternen</b>, während bei <b>'{worst_sat_typ}'</b> mit "
+        f"<b>{worst_sat_val:.2f} Sternen</b> geringfügiges Optimierungspotenzial besteht."
+    )
+    story.append(make_fazit_box("KUNDENZUFRIEDENHEIT & QUALITÄTSTREIBER", text_sat))
     story.append(Spacer(1, 6))
 
     # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Inkl. Name, E-Mail & Telefon) ---
