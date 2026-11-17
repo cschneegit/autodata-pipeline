@@ -108,9 +108,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     plt.savefig(chart_path, dpi=220)
     plt.close()
 
-    # --- Diagramm 2: Kundenzufriedenheit (Größere Darstellung) ---
+    # --- Diagramm 2: Kundenzufriedenheit (Etwas kompakter in der Höhe) ---
     bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
-    plt.figure(figsize=(7.2, 2.8))
+    plt.figure(figsize=(7.2, 2.6))
     sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
     
     bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.55)
@@ -156,7 +156,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         t.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,-1), CARD_BG),
             ('BOX', (0,0), (-1,-1), 1, BORDER_COLOR),
-            ('PADDING', (0,0), (-1,-1), 6),
+            ('PADDING', (0,0), (-1,-1), 5),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ]))
         return t
@@ -165,12 +165,12 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph("MANAGEMENT REPORT  •  OPERATIVE STEUERUNG", title_style))
     story.append(Paragraph("Prozess-Effizienz, Standort-Benchmarking & Qualität", ParagraphStyle('Sub', parent=styles['Heading3'], fontSize=10, textColor=colors.HexColor('#444444'), spaceAfter=3)))
     story.append(Paragraph(f"Berichtszeitraum: Q3/2026   |   Erstellt am: 10.11.2026   |   Verantwortlich: AutoData Pipeline   |   Volumen: {total_records} Vorgänge", sub_style))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
 
     # --- 01 EXECUTIVE SUMMARY & KPI-SCORECARD ---
     story.append(Paragraph("01  EXECUTIVE SUMMARY & KPI-SCORECARD", sec_heading))
     story.append(Paragraph("Gesamtstatus über alle 7 Standorte und 6 Maßnahmentypen:", sub_style))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 2))
 
     scorecard_headers = [
         Paragraph("Kernkennzahl (KPI)", tbl_header), Paragraph("Ist-Wert", tbl_header),
@@ -191,11 +191,11 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 3),
+        ('PADDING', (0,0), (-1,-1), 2.5),
         ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#fafafa'))
     ]))
     story.append(t_sc)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 3))
 
     text_exec = (
         f"Im Berichtszeitraum wurden <b>{total_records} Vorgänge</b> analysiert. Die durchschnittliche Gesamtdurchlaufzeit liegt mit <b>{avg_dur:.1f} Tagen</b> "
@@ -203,19 +203,19 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet."
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE ---
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
     story.append(Paragraph("Gegenüberstellung von wertschöpfender Bearbeitungszeit (Std.), Liegezeit (Tage) sowie Kosten- und Qualitätswirkung:", sub_style))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 2))
 
     mass_df = df_calc.groupby('massnahmetyp').agg(
         Anzahl=('id', 'count'),
         Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'),
         Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
-        # lambda-Funktion für Nacharbeitsquote in Prozent
+        # lambda-Funktion für Nacharbeit in Prozent
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
         Kosten=('kosten_eur', 'mean'),
         Zufried=('kundenzufriedenheit', 'mean')
@@ -251,14 +251,15 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 2.5),
+        ('PADDING', (0,0), (-1,-1), 2),
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_p)
-    story.append(Spacer(1, 6))
-
-    story.append(Image(chart_path, width=510, height=170))
+    # spacer zwischen Tabelle und Chart, damit es nicht zu gedrängt wirkt
     story.append(Spacer(1, 4))
+
+    story.append(Image(chart_path, width=510, height=160))
+    story.append(Spacer(1, 3))
 
     max_liege_typ = mass_df.loc[mass_df['Liegezeit'].idxmax(), 'massnahmetyp']
     max_liege_val = mass_df['Liegezeit'].max()
@@ -278,7 +279,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     # --- 03 STANDORT-BENCHMARKING ---
     story.append(Paragraph("03  STANDORT-BENCHMARKING (REGIONALER LEISTUNGSVERGLEICH)", sec_heading))
     story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices:", sub_style))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 2))
 
     # Standort-Benchmarking-Tabelle
     st_df = df_calc.groupby('standort').agg(
@@ -314,17 +315,17 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Paragraph(f"{avg_satisfaction:.1f} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
-    # Spaltenbreiten exakt auf A4 (534 pt Gesamtbreite) angepasst
+    # Hier die Spaltenbreiten auf A4 (534 pt Gesamtbreite) angepasst
     t_st = Table(st_rows, colWidths=[70, 45, 60, 55, 65, 60, 55, 65, 59])
     t_st.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 2.5),
+        ('PADDING', (0,0), (-1,-1), 2),
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_st)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 3))
 
     best_st = st_df.loc[st_df['Flusseffizienz'].idxmax(), 'standort']
     best_st_val = st_df['Flusseffizienz'].max()
@@ -336,12 +337,12 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{worst_st_val:.1f} Tage</b>)."
     )
     story.append(make_fazit_box("STANDORT-BENCHMARKING", text_standort))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
     # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
     story.append(Paragraph("04  WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT", sec_heading))
     story.append(Paragraph("Kosten- und Nacharbeitsanalyse im regionalen Vergleich:", sub_style))
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 2))
 
     w_headers = [
         Paragraph("Standort", tbl_header), Paragraph("Volumen (Anzahl)", tbl_header),
@@ -353,7 +354,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
-    # itertuples() verwenden für bessere Performance bei großen DataFrames
+    # itertuples() für bessere Performance bei großen DataFrames
     for r in st_w.itertuples():
         w_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
@@ -366,16 +367,17 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Paragraph(f"{nacharbeit_pct:.1f}%", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
+    # Hier das Padding auf 3.5 gesetzt, damit sie "schön auseinandergezogen" ist
     t_w = Table(w_rows, colWidths=[134, 110, 140, 150])
     t_w.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 2.5),
+        ('PADDING', (0,0), (-1,-1), 3.5),
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_w)
-    story.append(Spacer(1, 4))
+    story.append(Spacer(1, 3))
 
     max_cost_st = st_w.loc[st_w['Gesamtkosten'].idxmax(), 'standort']
     max_cost_val = st_w['Gesamtkosten'].max()
@@ -385,17 +387,17 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
-    # Kundenzufriedenheits-Balkendiagramm (Groß & mit Fazit)
+    # Kundenzufriedenheits-Balkendiagramm (Höhe auf 175 angepasst für idealen Platz)
     story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
     story.append(Spacer(1, 2))
-    story.append(Image(bar_path, width=510, height=190))
-    story.append(Spacer(1, 4))
+    story.append(Image(bar_path, width=510, height=175))
+    story.append(Spacer(1, 3))
 
     best_sat_typ = sat_by_measure.idxmax()
     best_sat_val = sat_by_measure.max()
-    worst_sat_typ = sat_by_measure.idxmin() # Korrigiert zu idxmin()
+    worst_sat_typ = sat_by_measure.idxmin()
     worst_sat_val = sat_by_measure.min()
 
     text_sat = (
@@ -404,7 +406,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>{worst_sat_val:.2f} Sternen</b> geringfügiges Optimierungspotenzial besteht."
     )
     story.append(make_fazit_box("KUNDENZUFRIEDENHEIT & QUALITÄTSTREIBER", text_sat))
-    story.append(Spacer(1, 6))
+    story.append(Spacer(1, 4))
 
     # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Inkl. Name, E-Mail & Telefon) ---
     story.append(PageBreak())
