@@ -195,7 +195,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,1), (-1,-1), colors.HexColor('#fafafa'))
     ]))
     story.append(t_sc)
-    story.append(Spacer(1, 3))
+    story.append(Spacer(1, 4))
 
     text_exec = (
         f"Im Berichtszeitraum wurden <b>{total_records} Vorgänge</b> analysiert. Die durchschnittliche Gesamtdurchlaufzeit liegt mit <b>{avg_dur:.1f} Tagen</b> "
@@ -203,7 +203,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet."
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
-    story.append(Spacer(1, 4))
+    
+    # ➔ HIER ANGEPASST: Größerer Abstand zwischen Sektion 01 und Sektion 02, damit Seite 1 gut gefüllt ist
+    story.append(Spacer(1, 14))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE ---
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
@@ -215,7 +217,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'),
         Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
-        # lambda-Funktion für Nacharbeit in Prozent
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
         Kosten=('kosten_eur', 'mean'),
         Zufried=('kundenzufriedenheit', 'mean')
@@ -255,7 +256,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_p)
-    # spacer zwischen Tabelle und Chart, damit es nicht zu gedrängt wirkt
     story.append(Spacer(1, 4))
 
     story.append(Image(chart_path, width=510, height=160))
@@ -281,7 +281,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices:", sub_style))
     story.append(Spacer(1, 2))
 
-    # Standort-Benchmarking-Tabelle
     st_df = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'), Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'), Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
@@ -315,7 +314,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Paragraph(f"{avg_satisfaction:.1f} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
-    # Hier die Spaltenbreiten auf A4 (534 pt Gesamtbreite) angepasst
     t_st = Table(st_rows, colWidths=[70, 45, 60, 55, 65, 60, 55, 65, 59])
     t_st.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
@@ -337,7 +335,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{worst_st_val:.1f} Tage</b>)."
     )
     story.append(make_fazit_box("STANDORT-BENCHMARKING", text_standort))
-    story.append(Spacer(1, 4))
+    
+    # ➔ HIER ANGEPASST: Deutlich mehr Abstand zwischen Sektion 03 und Sektion 04
+    story.append(Spacer(1, 16))
 
     # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
     story.append(Paragraph("04  WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT", sec_heading))
@@ -354,7 +354,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
-    # itertuples() für bessere Performance bei großen DataFrames
     for r in st_w.itertuples():
         w_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
@@ -367,7 +366,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Paragraph(f"{nacharbeit_pct:.1f}%", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
-    # Hier das Padding auf 3.5 gesetzt, damit sie "schön auseinandergezogen" ist
     t_w = Table(w_rows, colWidths=[134, 110, 140, 150])
     t_w.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
@@ -389,7 +387,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
     story.append(Spacer(1, 4))
 
-    # Kundenzufriedenheits-Balkendiagramm (Höhe auf 175 angepasst für idealen Platz)
+    # Kundenzufriedenheits-Balkendiagramm
     story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
     story.append(Spacer(1, 2))
     story.append(Image(bar_path, width=510, height=175))
@@ -414,7 +412,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph(f"Vollständige Liste aller verarbeiteten Vorgänge inkl. Name, E-Mail und Telefon (n = {total_records}), wie im Streamlit-Dashboard dargestellt:", sub_style))
     story.append(Spacer(1, 4))
 
-    # Tabellen-Header inkl. E-Mail und Telefon
     raw_headers = [
         Paragraph("ID", tbl_header),
         Paragraph("Name", tbl_header),
@@ -430,7 +427,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     ]
     raw_rows = [raw_headers]
 
-    # Befüllung über alle 250 Zeilen
     for r in df_calc.itertuples():
         raw_rows.append([
             Paragraph(str(getattr(r, 'id', '-')), tbl_cell),
@@ -446,7 +442,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             Paragraph(f"{getattr(r, 'kundenzufriedenheit', 0):.1f} ★", tbl_cell)
         ])
 
-    # Spaltenbreiten exakt auf A4 (534 pt Gesamtbreite) angepasst
     t_raw = Table(raw_rows, colWidths=[28, 65, 85, 60, 48, 62, 35, 30, 30, 52, 39], repeatRows=1)
     t_raw.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
