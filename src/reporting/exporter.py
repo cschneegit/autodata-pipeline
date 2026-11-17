@@ -108,7 +108,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     plt.savefig(chart_path, dpi=220)
     plt.close()
 
-    # --- Diagramm 2: Kundenzufriedenheit (Etwas kompakter in der Höhe) ---
+    # --- Diagramm 2: Kundenzufriedenheit ---
     bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
     plt.figure(figsize=(7.2, 2.6))
     sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
@@ -204,8 +204,8 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
     
-    # ➔ HIER ANGEPASST: Größerer Abstand zwischen Sektion 01 und Sektion 02, damit Seite 1 gut gefüllt ist
-    story.append(Spacer(1, 14))
+    # ➔ HIER ANGEPASST: Exakter Abstand zwischen Sektion 01 und 02 (von 14 auf 18 erhöht für perfektes Füllen)
+    story.append(Spacer(1, 18))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE ---
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
@@ -273,7 +273,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     )
     story.append(make_fazit_box("PROZESS-EFFIZIENZ", text_prozess))
     
-    # Sauberer Umbruch für Sektion 3 & 4
+    # Sauberer Seitenumbruch für Sektion 3 & 4
     story.append(PageBreak())
 
     # --- 03 STANDORT-BENCHMARKING ---
@@ -335,8 +335,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{worst_st_val:.1f} Tage</b>)."
     )
     story.append(make_fazit_box("STANDORT-BENCHMARKING", text_standort))
-    
-    # ➔ HIER ANGEPASST: Deutlich mehr Abstand zwischen Sektion 03 und Sektion 04
     story.append(Spacer(1, 16))
 
     # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
@@ -406,7 +404,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(make_fazit_box("KUNDENZUFRIEDENHEIT & QUALITÄTSTREIBER", text_sat))
     story.append(Spacer(1, 4))
 
-    # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN (Inkl. Name, E-Mail & Telefon) ---
+    # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN ---
     story.append(PageBreak())
     story.append(Paragraph("05  ANHANG: VOLLSTÄNDIGE ANONYMISIERTE PROZESSDATEN", sec_heading))
     story.append(Paragraph(f"Vollständige Liste aller verarbeiteten Vorgänge inkl. Name, E-Mail und Telefon (n = {total_records}), wie im Streamlit-Dashboard dargestellt:", sub_style))
