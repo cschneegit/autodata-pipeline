@@ -110,7 +110,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     # --- Diagramm 2: Kundenzufriedenheit ---
     bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
-    plt.figure(figsize=(7.2, 2.6))
+    plt.figure(figsize=(7.2, 2.5))
     sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
     
     bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.55)
@@ -203,8 +203,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet."
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
-    
-    # ➔ HIER ANGEPASST: Exakter Abstand zwischen Sektion 01 und 02 (von 14 auf 18 erhöht für perfektes Füllen)
     story.append(Spacer(1, 18))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE ---
@@ -335,7 +333,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{worst_st_val:.1f} Tage</b>)."
     )
     story.append(make_fazit_box("STANDORT-BENCHMARKING", text_standort))
-    story.append(Spacer(1, 16))
+    story.append(Spacer(1, 12))
 
     # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
     story.append(Paragraph("04  WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT", sec_heading))
@@ -383,12 +381,14 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
-    story.append(Spacer(1, 4))
+
+    # ➔ HIER ANGEPASST: Mehr Luft zwischen Wirtschaftlichkeits-Block und dem Zufriedenheits-Diagramm
+    story.append(Spacer(1, 16))
 
     # Kundenzufriedenheits-Balkendiagramm
     story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
-    story.append(Spacer(1, 2))
-    story.append(Image(bar_path, width=510, height=175))
+    story.append(Spacer(1, 4))
+    story.append(Image(bar_path, width=510, height=165))
     story.append(Spacer(1, 3))
 
     best_sat_typ = sat_by_measure.idxmax()
@@ -402,7 +402,6 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"<b>{worst_sat_val:.2f} Sternen</b> geringfügiges Optimierungspotenzial besteht."
     )
     story.append(make_fazit_box("KUNDENZUFRIEDENHEIT & QUALITÄTSTREIBER", text_sat))
-    story.append(Spacer(1, 4))
 
     # --- 05 ANHANG: VOLLSTÄNDIGE ANONYMISIERTE DATEN ---
     story.append(PageBreak())
