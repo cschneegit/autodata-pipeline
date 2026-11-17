@@ -88,14 +88,14 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         gesamtdurchlaufzeit_tage=('gesamtdurchlaufzeit_tage', 'mean')
     ).sort_values('gesamtdurchlaufzeit_tage', ascending=True)
 
-    plt.figure(figsize=(7.2, 2.6))
+    plt.figure(figsize=(7.2, 2.4))
     y_pos = range(len(mass_agg))
     plt.barh(y_pos, mass_agg['bearb_tage'], color='#00a88f', label='Bearbeitungszeit (Tage)')
     plt.barh(y_pos, mass_agg['liegezeit_tage'], left=mass_agg['bearb_tage'], color='#91a3b7', label='Liegezeit (Tage)')
     
     plt.yticks(y_pos, mass_agg.index, fontsize=8)
     plt.xlabel('Tage (Ø pro Vorgang)', fontsize=8)
-    plt.title(f'Zeitzusammensetzung nach Maßnahmentyp (n = {total_records})', fontsize=10, fontweight='bold', pad=6)
+    plt.title(f'Zeitzusammensetzung nach Maßnahmentyp (n = {total_records})', fontsize=9.5, fontweight='bold', pad=4)
     plt.legend(loc='lower right', fontsize=7)
     
     for idx, row in enumerate(mass_agg.itertuples()):
@@ -110,12 +110,12 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     # --- Diagramm 2: Kundenzufriedenheit (Größere Darstellung) ---
     bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
-    plt.figure(figsize=(7.2, 3.0))
+    plt.figure(figsize=(7.2, 2.8))
     sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
     
     bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.55)
     plt.xlabel('Ø Kundenzufriedenheit (Sterne)', fontsize=9, fontweight='bold')
-    plt.title('Kundenzufriedenheit nach Maßnahmentyp', fontsize=10, fontweight='bold')
+    plt.title('Kundenzufriedenheit nach Maßnahmentyp', fontsize=9.5, fontweight='bold')
     plt.xlim(0, 5.0)
     plt.grid(axis='x', linestyle='--', alpha=0.7)
 
@@ -203,7 +203,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet."
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
 
     # --- 02 PROZESS-EFFIZIENZ & ENGPASS-ANALYSE ---
     story.append(Paragraph("02  PROZESS-EFFIZIENZ & ENGPASS-ANALYSE NACH MASSNAHMENTYP", sec_heading))
@@ -215,7 +215,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'),
         Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
-        #lambda x: (x.sum()/len(x))*100 berechnet den Prozentsatz der Nacharbeit
+        # lambda-Funktion für Nacharbeitsquote in Prozent
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100),
         Kosten=('kosten_eur', 'mean'),
         Zufried=('kundenzufriedenheit', 'mean')
@@ -255,12 +255,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_p)
-    
-    # 1. ÄNDERUNG: Sauberer Abstand und PageBreak vor dem Diagramm in Sektion 02
-    story.append(Spacer(1, 8))
-    story.append(PageBreak())
+    story.append(Spacer(1, 6))
 
-    story.append(Image(chart_path, width=510, height=185))
+    story.append(Image(chart_path, width=510, height=170))
     story.append(Spacer(1, 4))
 
     max_liege_typ = mass_df.loc[mass_df['Liegezeit'].idxmax(), 'massnahmetyp']
@@ -283,7 +280,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Paragraph("Vergleich der 7 Standorte zur Identifikation von Best Practices:", sub_style))
     story.append(Spacer(1, 3))
 
-    # Standort-Benchmarking Tabelle
+    # Standort-Benchmarking-Tabelle
     st_df = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'), Bearb_Std=('bearbeitungszeit_std', 'mean'),
         Liegezeit=('liegezeit_tage', 'mean'), Durchlauf=('gesamtdurchlaufzeit_tage', 'mean'),
@@ -356,7 +353,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
-    # itertuples() für bessere Performance bei großen DataFrames
+    # itertuples() verwenden für bessere Performance bei großen DataFrames
     for r in st_w.itertuples():
         w_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
@@ -390,15 +387,15 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
     story.append(Spacer(1, 6))
 
-    # 2. ÄNDERUNG: Größeres Kundenzufriedenheits-Diagramm + eigenes Management-Fazit
+    # Kundenzufriedenheits-Balkendiagramm (Groß & mit Fazit)
     story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
-    story.append(Spacer(1, 3))
-    story.append(Image(bar_path, width=510, height=210))
+    story.append(Spacer(1, 2))
+    story.append(Image(bar_path, width=510, height=190))
     story.append(Spacer(1, 4))
 
     best_sat_typ = sat_by_measure.idxmax()
     best_sat_val = sat_by_measure.max()
-    worst_sat_typ = sat_by_measure.idxmin()
+    worst_sat_typ = sat_by_measure.idxmin() # Korrigiert zu idxmin()
     worst_sat_val = sat_by_measure.min()
 
     text_sat = (
