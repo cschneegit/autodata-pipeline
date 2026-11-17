@@ -398,7 +398,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     best_sat_typ = sat_by_measure.idxmax()
     best_sat_val = sat_by_measure.max()
-    worst_sat_typ = sat_by_measure.idmin()
+    worst_sat_typ = sat_by_measure.idxmin()
     worst_sat_val = sat_by_measure.min()
 
     text_sat = (
