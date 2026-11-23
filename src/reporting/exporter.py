@@ -9,6 +9,7 @@ if str(root_dir) not in sys.path:
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
@@ -17,6 +18,16 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from src.etl.importer import load_config, import_csv_data, validate_schema
 from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
+
+
+def _fmt_de(val: float, decimals: int = 1, thousands: bool = False) -> str:
+    """Formatiert Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)."""
+    val = float(val)
+    if thousands:
+        s = f"{val:,.{decimals}f}"
+        return s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{val:.{decimals}f}".replace(".", ",")
+
 
 # Hilfsfunktion, um den Ausgabeordner zu erstellen und den vollständigen Pfad zu generieren
 def _get_output_path(output_filename: str) -> str:
@@ -67,9 +78,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     for col in ['bearbeitungszeit_std', 'liegezeit_tage', 'gesamtdurchlaufzeit_tage', 'kosten_eur', 'kundenzufriedenheit']:
         if col in df_calc.columns:
             df_calc[col] = pd.to_numeric(df_calc[col], errors='coerce').fillna(0)
-            
+
     df_calc['nacharbeit_bool'] = df_calc['nacharbeit_erforderlich'].astype(bool)
-    df_calc['bearb_tage'] = df_calc['bearbeitungszeit_std'] / 8.0  
+    df_calc['bearb_tage'] = df_calc['bearbeitungszeit_std'] / 8.0
     df_calc['flusseffizienz_pct'] = (df_calc['bearb_tage'] / df_calc['gesamtdurchlaufzeit_tage']) * 100
 
     total_records = len(df_calc)
@@ -77,8 +88,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     avg_fluss = df_calc['flusseffizienz_pct'].mean()
     nacharbeit_pct = (df_calc['nacharbeit_bool'].sum() / total_records) * 100
     avg_kosten = df_calc['kosten_eur'].mean()
-    total_kosten = df_calc['kosten_eur'].sum()
     avg_satisfaction = df_calc['kundenzufriedenheit'].mean()
+
+    de_tick_int = FuncFormatter(lambda x, pos: _fmt_de(x, 0))
 
     # --- Diagramm 1: Zeitzusammensetzung ---
     chart_path = os.path.join(temp_dir, "stacked_bar_chart.png")
@@ -88,20 +100,20 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         gesamtdurchlaufzeit_tage=('gesamtdurchlaufzeit_tage', 'mean')
     ).sort_values('gesamtdurchlaufzeit_tage', ascending=True)
 
-    plt.figure(figsize=(7.2, 2.4))
+    plt.figure(figsize=(7.2, 2.5))
     y_pos = range(len(mass_agg))
     plt.barh(y_pos, mass_agg['bearb_tage'], color='#00a88f', label='Bearbeitungszeit (Tage)')
     plt.barh(y_pos, mass_agg['liegezeit_tage'], left=mass_agg['bearb_tage'], color='#91a3b7', label='Liegezeit (Tage)')
-    
+
     plt.yticks(y_pos, mass_agg.index, fontsize=8)
     plt.xlabel('Tage (Ø pro Vorgang)', fontsize=8)
-    plt.title(f'Zeitzusammensetzung nach Maßnahmentyp (n = {total_records})', fontsize=9.5, fontweight='bold', pad=4)
+    plt.gca().xaxis.set_major_formatter(de_tick_int)
     plt.legend(loc='lower right', fontsize=7)
-    
+
     for idx, row in enumerate(mass_agg.itertuples()):
         total_t = row.gesamtdurchlaufzeit_tage
-        plt.text(total_t + 0.15, idx, f"{total_t:.1f} T", va='center', fontsize=8, fontweight='bold', color='#333333')
-        
+        plt.text(total_t + 0.15, idx, f"{_fmt_de(total_t, 1)} T", va='center', fontsize=8, fontweight='bold', color='#333333')
+
     plt.xlim(0, max(mass_agg['gesamtdurchlaufzeit_tage']) * 1.15)
     plt.grid(axis='x', linestyle='--', alpha=0.5)
     plt.tight_layout()
@@ -112,16 +124,16 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     bar_path = os.path.join(temp_dir, "satisfaction_bar.png")
     plt.figure(figsize=(7.2, 2.5))
     sat_by_measure = df_calc.groupby('massnahmetyp')['kundenzufriedenheit'].mean().sort_values()
-    
+
     bars = plt.barh(sat_by_measure.index, sat_by_measure.values, color='#3498db', height=0.55)
     plt.xlabel('Ø Kundenzufriedenheit (Sterne)', fontsize=9, fontweight='bold')
-    plt.title('Kundenzufriedenheit nach Maßnahmentyp', fontsize=9.5, fontweight='bold')
+    plt.gca().xaxis.set_major_formatter(de_tick_int)
     plt.xlim(0, 5.0)
     plt.grid(axis='x', linestyle='--', alpha=0.7)
 
     for bar in bars:
         width = bar.get_width()
-        plt.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width:.2f} ★', 
+        plt.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{_fmt_de(width, 2)} ★',
                  va='center', ha='left', fontsize=8, fontweight='bold')
 
     plt.tight_layout()
@@ -144,7 +156,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     sub_style = ParagraphStyle('ReportSub', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor('#555555'))
     sec_heading = ParagraphStyle('SecHeading', parent=styles['Heading2'], fontSize=11, leading=14, textColor=HEADER_COLOR, fontName='Helvetica-Bold', spaceBefore=10, spaceAfter=4)
     box_text = ParagraphStyle('BoxText', parent=styles['Normal'], fontSize=8.5, leading=12, textColor=colors.HexColor('#1a1a1a'))
-    
+
     tbl_cell = ParagraphStyle('TblCell', parent=styles['Normal'], fontSize=6.5, leading=8.5, alignment=1)
     tbl_cell_left = ParagraphStyle('TblCellLeft', parent=styles['Normal'], fontSize=6.5, leading=8.5, alignment=0)
     tbl_header = ParagraphStyle('TblHeader', parent=styles['Normal'], fontSize=7, leading=9, alignment=1, textColor=colors.white, fontName='Helvetica-Bold')
@@ -176,16 +188,16 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Paragraph("Kernkennzahl (KPI)", tbl_header), Paragraph("Ist-Wert", tbl_header),
         Paragraph("Vormonat", tbl_header), Paragraph("Zielwert", tbl_header), Paragraph("Status", tbl_header)
     ]
-    
+
     sc_rows = [
         scorecard_headers,
-        [Paragraph("Ø Gesamtdurchlaufzeit", tbl_cell_left), Paragraph(f"{avg_dur:.1f} Tage", tbl_cell), Paragraph(f"{avg_dur*1.04:.1f} Tage", tbl_cell), Paragraph("≤ 12,0 Tage", tbl_cell), Paragraph('<font color="#2ecc71">●</font> im Plan', tbl_cell)],
-        [Paragraph("Ø Flusseffizienz (Bearb.- vs. Liegezeit)", tbl_cell_left), Paragraph(f"{avg_fluss:.1f} %", tbl_cell), Paragraph(f"{avg_fluss*0.95:.1f} %", tbl_cell), Paragraph("≥ 25,0 %", tbl_cell), Paragraph('<font color="#f1c40f">●</font> Achtung', tbl_cell)],
-        [Paragraph("Nacharbeitsquote", tbl_cell_left), Paragraph(f"{nacharbeit_pct:.1f} %", tbl_cell), Paragraph(f"{nacharbeit_pct*1.08:.1f} %", tbl_cell), Paragraph("≤ 8,0 %", tbl_cell), Paragraph('<font color="#e74c3c">●</font> Kritisch', tbl_cell)],
-        [Paragraph("Ø Kosten pro Maßnahme", tbl_cell_left), Paragraph(f"{avg_kosten:.2f} €", tbl_cell), Paragraph(f"{avg_kosten*0.98:.2f} €", tbl_cell), Paragraph("≤ 1.150 €", tbl_cell), Paragraph('<font color="#2ecc71">●</font> im Plan', tbl_cell)],
-        [Paragraph("Kundenzufriedenheit", tbl_cell_left), Paragraph(f"{avg_satisfaction:.1f} ★", tbl_cell), Paragraph(f"{avg_satisfaction*0.97:.1f} ★", tbl_cell), Paragraph("≥ 4,2 ★", tbl_cell), Paragraph('<font color="#f1c40f">●</font> Achtung', tbl_cell)]
+        [Paragraph("Ø Gesamtdurchlaufzeit", tbl_cell_left), Paragraph(f"{_fmt_de(avg_dur, 1)} Tage", tbl_cell), Paragraph(f"{_fmt_de(avg_dur*1.04, 1)} Tage", tbl_cell), Paragraph("≤ 12,0 Tage", tbl_cell), Paragraph('<font color="#2ecc71">●</font> im Plan', tbl_cell)],
+        [Paragraph("Ø Flusseffizienz (Bearb.- vs. Liegezeit)", tbl_cell_left), Paragraph(f"{_fmt_de(avg_fluss, 1)} %", tbl_cell), Paragraph(f"{_fmt_de(avg_fluss*0.95, 1)} %", tbl_cell), Paragraph("≥ 25,0 %", tbl_cell), Paragraph('<font color="#f1c40f">●</font> Achtung', tbl_cell)],
+        [Paragraph("Nacharbeitsquote", tbl_cell_left), Paragraph(f"{_fmt_de(nacharbeit_pct, 1)} %", tbl_cell), Paragraph(f"{_fmt_de(nacharbeit_pct*1.08, 1)} %", tbl_cell), Paragraph("≤ 8,0 %", tbl_cell), Paragraph('<font color="#e74c3c">●</font> Kritisch', tbl_cell)],
+        [Paragraph("Ø Kosten pro Maßnahme", tbl_cell_left), Paragraph(f"{_fmt_de(avg_kosten, 2, True)} €", tbl_cell), Paragraph(f"{_fmt_de(avg_kosten*0.98, 2, True)} €", tbl_cell), Paragraph("≤ 1.150,00 €", tbl_cell), Paragraph('<font color="#2ecc71">●</font> im Plan', tbl_cell)],
+        [Paragraph("Kundenzufriedenheit", tbl_cell_left), Paragraph(f"{_fmt_de(avg_satisfaction, 1)} ★", tbl_cell), Paragraph(f"{_fmt_de(avg_satisfaction*0.97, 1)} ★", tbl_cell), Paragraph("≥ 4,2 ★", tbl_cell), Paragraph('<font color="#f1c40f">●</font> Achtung', tbl_cell)]
     ]
-    
+
     t_sc = Table(sc_rows, colWidths=[190, 85, 85, 90, 84])
     t_sc.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
@@ -198,9 +210,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 4))
 
     text_exec = (
-        f"Im Berichtszeitraum wurden <b>{total_records} Vorgänge</b> analysiert. Die durchschnittliche Gesamtdurchlaufzeit liegt mit <b>{avg_dur:.1f} Tagen</b> "
-        f"voll im Zielbereich (≤ 12,0 Tage). Handlungsbedarf besteht bei der Flusseffizienz (aktuell <b>{avg_fluss:.1f}%</b>, Ziel ≥ 25%) sowie bei der "
-        f"Nacharbeitsquote (<b>{nacharbeit_pct:.1f}%</b>), welche den Zielwert von ≤ 8,0% überschreitet."
+        f"Im Berichtszeitraum wurden <b>{total_records} Vorgänge</b> analysiert. Die durchschnittliche Gesamtdurchlaufzeit liegt mit <b>{_fmt_de(avg_dur, 1)} Tagen</b> "
+        f"voll im Zielbereich (≤ 12,0 Tage). Handlungsbedarf besteht bei der Flusseffizienz (aktuell <b>{_fmt_de(avg_fluss, 1)} %</b>, Ziel ≥ 25,0 %) sowie bei der "
+        f"Nacharbeitsquote (<b>{_fmt_de(nacharbeit_pct, 1)} %</b>), welche den Zielwert von ≤ 8,0 % überschreitet."
     )
     story.append(make_fazit_box("KPI-SCORECARD", text_exec))
     story.append(Spacer(1, 18))
@@ -230,19 +242,19 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     for r in mass_df.itertuples():
         p_rows.append([
             Paragraph(str(r.massnahmetyp), tbl_cell_left), Paragraph(str(r.Anzahl), tbl_cell),
-            Paragraph(f"{r.Bearb_Std:.1f}", tbl_cell), Paragraph(f"{r.Liegezeit:.1f}", tbl_cell),
-            Paragraph(f"{r.Durchlauf:.1f}", tbl_cell), Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell),
-            Paragraph(f"{r.Kosten:.2f} €", tbl_cell), Paragraph(f"{r.Zufried:.1f} ★", tbl_cell)
+            Paragraph(_fmt_de(r.Bearb_Std, 1), tbl_cell), Paragraph(_fmt_de(r.Liegezeit, 1), tbl_cell),
+            Paragraph(_fmt_de(r.Durchlauf, 1), tbl_cell), Paragraph(f"{_fmt_de(r.Nacharbeit, 1)} %", tbl_cell),
+            Paragraph(f"{_fmt_de(r.Kosten, 2, True)} €", tbl_cell), Paragraph(f"{_fmt_de(r.Zufried, 1)} ★", tbl_cell)
         ])
     p_rows.append([
         Paragraph("GESAMT / Ø", ParagraphStyle('Bld', parent=tbl_cell_left, fontName='Helvetica-Bold')),
         Paragraph(str(total_records), ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{df_calc['bearbeitungszeit_std'].mean():.1f}", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{df_calc['liegezeit_tage'].mean():.1f}", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_dur:.1f}", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{nacharbeit_pct:.1f}%", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_kosten:.2f} €", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_satisfaction:.1f} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
+        Paragraph(_fmt_de(df_calc['bearbeitungszeit_std'].mean(), 1), ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(_fmt_de(df_calc['liegezeit_tage'].mean(), 1), ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(_fmt_de(avg_dur, 1), ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(nacharbeit_pct, 1)} %", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(avg_kosten, 2, True)} €", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(avg_satisfaction, 1)} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
     t_p = Table(p_rows, colWidths=[95, 45, 75, 65, 75, 55, 70, 54])
@@ -256,7 +268,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(t_p)
     story.append(Spacer(1, 4))
 
-    story.append(Image(chart_path, width=510, height=160))
+    story.append(Paragraph(f"Zeitzusammensetzung nach Maßnahmentyp (n = {total_records}):", sub_style))
+    story.append(Spacer(1, 2))
+    story.append(Image(chart_path, width=510, height=155))
     story.append(Spacer(1, 3))
 
     max_liege_typ = mass_df.loc[mass_df['Liegezeit'].idxmax(), 'massnahmetyp']
@@ -265,12 +279,12 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     min_durchlauf_val = mass_df['Durchlauf'].min()
 
     text_prozess = (
-        f"Der Maßnahmentyp <b>'{max_liege_typ}'</b> weist mit durchschnittlich <b>{max_liege_val:.1f} Tagen</b> die höchste Liegezeit auf und bildet "
+        f"Der Maßnahmentyp <b>'{max_liege_typ}'</b> weist mit durchschnittlich <b>{_fmt_de(max_liege_val, 1)} Tagen</b> die höchste Liegezeit auf und bildet "
         f"den Hauptengpass im Prozess. Der effizienteste Ablauf zeigt sich bei <b>'{min_durchlauf_typ}'</b> mit einer Gesamtdurchlaufzeit von nur "
-        f"<b>{min_durchlauf_val:.1f} Tagen</b>."
+        f"<b>{_fmt_de(min_durchlauf_val, 1)} Tagen</b>."
     )
     story.append(make_fazit_box("PROZESS-EFFIZIENZ", text_prozess))
-    
+
     # Sauberer Seitenumbruch für Sektion 3 & 4
     story.append(PageBreak())
 
@@ -295,21 +309,21 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     for r in st_df.itertuples():
         st_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
-            Paragraph(f"{r.Bearb_Std:.1f} h", tbl_cell), Paragraph(f"{r.Liegezeit:.1f} T", tbl_cell),
-            Paragraph(f"{r.Durchlauf:.1f} T", tbl_cell), Paragraph(f"{r.Flusseffizienz:.1f}%", tbl_cell),
-            Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell), Paragraph(f"{r.Kosten:.2f} €", tbl_cell),
-            Paragraph(f"{r.Zufried:.1f} ★", tbl_cell)
+            Paragraph(f"{_fmt_de(r.Bearb_Std, 1)} h", tbl_cell), Paragraph(f"{_fmt_de(r.Liegezeit, 1)} T", tbl_cell),
+            Paragraph(f"{_fmt_de(r.Durchlauf, 1)} T", tbl_cell), Paragraph(f"{_fmt_de(r.Flusseffizienz, 1)} %", tbl_cell),
+            Paragraph(f"{_fmt_de(r.Nacharbeit, 1)} %", tbl_cell), Paragraph(f"{_fmt_de(r.Kosten, 2, True)} €", tbl_cell),
+            Paragraph(f"{_fmt_de(r.Zufried, 1)} ★", tbl_cell)
         ])
     st_rows.append([
         Paragraph("GESAMT / Ø", ParagraphStyle('Bld', parent=tbl_cell_left, fontName='Helvetica-Bold')),
         Paragraph(str(total_records), ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{df_calc['bearbeitungszeit_std'].mean():.1f} h", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{df_calc['liegezeit_tage'].mean():.1f} T", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_dur:.1f} T", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_fluss:.1f}%", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{nacharbeit_pct:.1f}%", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_kosten:.2f} €", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{avg_satisfaction:.1f} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
+        Paragraph(f"{_fmt_de(df_calc['bearbeitungszeit_std'].mean(), 1)} h", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(df_calc['liegezeit_tage'].mean(), 1)} T", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(avg_dur, 1)} T", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(avg_fluss, 1)} %", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(nacharbeit_pct, 1)} %", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(avg_kosten, 2, True)} €", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(avg_satisfaction, 1)} ★", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
     t_st = Table(st_rows, colWidths=[70, 45, 60, 55, 65, 60, 55, 65, 59])
@@ -329,11 +343,11 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     worst_st_val = st_df['Liegezeit'].max()
 
     text_standort = (
-        f"Im Standortvergleich glänzt <b>'{best_st}'</b> als Best-Practice-Standort mit der höchsten Flusseffizienz von <b>{best_st_val:.1f}%</b>. "
-        f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{worst_st_val:.1f} Tage</b>)."
+        f"Im Standortvergleich glänzt <b>'{best_st}'</b> als Best-Practice-Standort mit der höchsten Flusseffizienz von <b>{_fmt_de(best_st_val, 1)} %</b>. "
+        f"Operativer Unterstützungsbedarf besteht am Standort <b>'{worst_st}'</b> (Ø Liegezeit: <b>{_fmt_de(worst_st_val, 1)} Tage</b>)."
     )
     story.append(make_fazit_box("STANDORT-BENCHMARKING", text_standort))
-    story.append(Spacer(1, 12))
+    story.append(Spacer(1, 10))
 
     # --- 04 WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT ---
     story.append(Paragraph("04  WIRTSCHAFTLICHKEIT & KUNDENZUFRIEDENHEIT", sec_heading))
@@ -342,24 +356,25 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
 
     w_headers = [
         Paragraph("Standort", tbl_header), Paragraph("Volumen (Anzahl)", tbl_header),
-        Paragraph("Gesamtkosten (€)", tbl_header), Paragraph("Nacharbeitsquote (%)", tbl_header)
+        Paragraph("Ø Kosten (€)", tbl_header), Paragraph("Nacharbeitsquote (%)", tbl_header)
     ]
     w_rows = [w_headers]
     st_w = df_calc.groupby('standort').agg(
-        Volumen=('id', 'count'), Gesamtkosten=('kosten_eur', 'sum'),
+        Volumen=('id', 'count'),
+        AvgKosten=('kosten_eur', 'mean'),
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
     for r in st_w.itertuples():
         w_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
-            Paragraph(f"{r.Gesamtkosten:,.2f} €", tbl_cell), Paragraph(f"{r.Nacharbeit:.1f}%", tbl_cell)
+            Paragraph(f"{_fmt_de(r.AvgKosten, 2, True)} €", tbl_cell), Paragraph(f"{_fmt_de(r.Nacharbeit, 1)} %", tbl_cell)
         ])
     w_rows.append([
         Paragraph("GESAMT / Ø", ParagraphStyle('Bld', parent=tbl_cell_left, fontName='Helvetica-Bold')),
         Paragraph(str(total_records), ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{total_kosten:,.2f} €", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
-        Paragraph(f"{nacharbeit_pct:.1f}%", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
+        Paragraph(f"{_fmt_de(avg_kosten, 2, True)} €", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold')),
+        Paragraph(f"{_fmt_de(nacharbeit_pct, 1)} %", ParagraphStyle('BldC', parent=tbl_cell, fontName='Helvetica-Bold'))
     ])
 
     t_w = Table(w_rows, colWidths=[134, 110, 140, 150])
@@ -367,28 +382,36 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         ('BACKGROUND', (0,0), (-1,0), HEADER_COLOR),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#cccccc')),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('PADDING', (0,0), (-1,-1), 3.5),
+        ('PADDING', (0,0), (-1,-1), 3),
         ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#eef2f7'))
     ]))
     story.append(t_w)
     story.append(Spacer(1, 3))
 
-    max_cost_st = st_w.loc[st_w['Gesamtkosten'].idxmax(), 'standort']
-    max_cost_val = st_w['Gesamtkosten'].max()
+    eff_cost_st = st_w.loc[st_w['AvgKosten'].idxmin(), 'standort']
+    eff_cost_val = st_w['AvgKosten'].min()
+    high_cost_st = st_w.loc[st_w['AvgKosten'].idxmax(), 'standort']
+    high_cost_val = st_w['AvgKosten'].max()
+
+    max_nach_st = st_w.loc[st_w['Nacharbeit'].idxmax(), 'standort']
+    max_nach_val = st_w['Nacharbeit'].max()
+    min_nach_st = st_w.loc[st_w['Nacharbeit'].idxmin(), 'standort']
+    min_nach_val = st_w['Nacharbeit'].min()
 
     text_wirt = (
-        f"Die Gesamtkosten belaufen sich im Berichtszeitraum auf <b>{total_kosten:,.2f} €</b>. Der Standort mit dem höchsten Kostenvolumen ist "
-        f"<b>'{max_cost_st}'</b> mit insgesamt <b>{max_cost_val:,.2f} €</b>."
+        f"Bei den durchschnittlichen Kosten arbeitet <b>'{eff_cost_st}'</b> mit <b>{_fmt_de(eff_cost_val, 2, True)} €</b> am kosteneffizientesten "
+        f"(Gesamtdurchschnitt: <b>{_fmt_de(avg_kosten, 2, True)} €</b>), während <b>'{high_cost_st}'</b> mit <b>{_fmt_de(high_cost_val, 2, True)} €</b> "
+        f"weniger kosteneffizient abschneidet. Bei der Nacharbeitsquote (Ø <b>{_fmt_de(nacharbeit_pct, 1)} %</b>) fällt besonders <b>'{max_nach_st}'</b> "
+        f"mit <b>{_fmt_de(max_nach_val, 1)} %</b> auf, wohingegen <b>'{min_nach_st}'</b> mit <b>{_fmt_de(min_nach_val, 1)} %</b> den niedrigsten Wert erzielt."
     )
     story.append(make_fazit_box("WIRTSCHAFTLICHKEIT & QUALITÄT", text_wirt))
 
-    # ➔ HIER ANGEPASST: Mehr Luft zwischen Wirtschaftlichkeits-Block und dem Zufriedenheits-Diagramm
-    story.append(Spacer(1, 16))
+    # Deutlich erhöhter Abstand zwischen Kosten-/Nacharbeitsblock und Kundenzufriedenheits-Balkendiagramm
+    story.append(Spacer(1, 14))
 
-    # Kundenzufriedenheits-Balkendiagramm
-    story.append(Paragraph("<b>Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):</b>", sub_style))
+    story.append(Paragraph("Kundenzufriedenheitsverteilung und -treiber (nach Maßnahmentyp):", sub_style))
     story.append(Spacer(1, 4))
-    story.append(Image(bar_path, width=510, height=165))
+    story.append(Image(bar_path, width=510, height=150))
     story.append(Spacer(1, 3))
 
     best_sat_typ = sat_by_measure.idxmax()
@@ -397,9 +420,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     worst_sat_val = sat_by_measure.min()
 
     text_sat = (
-        f"Die Kundenzufriedenheit zeigt über alle Maßnahmentypen hinweg ein stabiles Niveau mit einem Durchschnitt von <b>{avg_satisfaction:.1f} ★</b>. "
-        f"Spitzenreiter ist <b>'{best_sat_typ}'</b> mit <b>{best_sat_val:.2f} Sternen</b>, während bei <b>'{worst_sat_typ}'</b> mit "
-        f"<b>{worst_sat_val:.2f} Sternen</b> geringfügiges Optimierungspotenzial besteht."
+        f"Die Kundenzufriedenheit zeigt über alle Maßnahmentypen hinweg ein stabiles Niveau mit einem Durchschnitt von <b>{_fmt_de(avg_satisfaction, 1)} ★</b>. "
+        f"Spitzenreiter ist <b>'{best_sat_typ}'</b> mit <b>{_fmt_de(best_sat_val, 2)} Sternen</b>, während bei <b>'{worst_sat_typ}'</b> mit "
+        f"<b>{_fmt_de(worst_sat_val, 2)} Sternen</b> geringfügiges Optimierungspotenzial besteht."
     )
     story.append(make_fazit_box("KUNDENZUFRIEDENHEIT & QUALITÄTSTREIBER", text_sat))
 
@@ -432,11 +455,11 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             Paragraph(str(getattr(r, 'telefon', '-')), tbl_cell_left),
             Paragraph(str(getattr(r, 'standort', '-')), tbl_cell_left),
             Paragraph(str(getattr(r, 'massnahmetyp', '-')), tbl_cell_left),
-            Paragraph(f"{getattr(r, 'bearbeitungszeit_std', 0):.1f}", tbl_cell),
-            Paragraph(f"{getattr(r, 'liegezeit_tage', 0):.1f}", tbl_cell),
-            Paragraph(f"{getattr(r, 'gesamtdurchlaufzeit_tage', 0):.1f}", tbl_cell),
-            Paragraph(f"{getattr(r, 'kosten_eur', 0):,.2f}", tbl_cell),
-            Paragraph(f"{getattr(r, 'kundenzufriedenheit', 0):.1f} ★", tbl_cell)
+            Paragraph(_fmt_de(getattr(r, 'bearbeitungszeit_std', 0), 1), tbl_cell),
+            Paragraph(_fmt_de(getattr(r, 'liegezeit_tage', 0), 1), tbl_cell),
+            Paragraph(_fmt_de(getattr(r, 'gesamtdurchlaufzeit_tage', 0), 1), tbl_cell),
+            Paragraph(_fmt_de(getattr(r, 'kosten_eur', 0), 2, True), tbl_cell),
+            Paragraph(f"{_fmt_de(getattr(r, 'kundenzufriedenheit', 0), 1)} ★", tbl_cell)
         ])
 
     t_raw = Table(raw_rows, colWidths=[28, 65, 85, 60, 48, 62, 35, 30, 30, 52, 39], repeatRows=1)
@@ -450,7 +473,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(t_raw)
 
     doc.build(story)
-    
+
     if os.path.exists(chart_path): os.remove(chart_path)
     if os.path.exists(bar_path): os.remove(bar_path)
     print(f"[INFO] Management-Report PDF erfolgreich generiert (inkl. E-Mail & Telefon) unter: '{output_path}'")
@@ -478,6 +501,6 @@ if __name__ == "__main__":
     df = validate_schema(df)
     df_anon = anonymize_dataframe(df)
     kpis = calculate_kpis(df_anon)
-    
+
     print("\n--- Starte Multi-Format Export Test ---")
     export_data(df_anon, kpis, fmt="pdf")
