@@ -19,7 +19,7 @@ from src.etl.importer import load_config, import_csv_data, validate_schema
 from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
 
-
+# fmt_de: Formatierung von Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)
 def _fmt_de(val: float, decimals: int = 1, thousands: bool = False) -> str:
     """Formatiert Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)."""
     val = float(val)
@@ -90,6 +90,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     avg_kosten = df_calc['kosten_eur'].mean()
     avg_satisfaction = df_calc['kundenzufriedenheit'].mean()
 
+    # lambda x, pos: _fmt_de(x, 0) sorgt dafür, dass die Achsenbeschriftungen in deutscher Schreibweise angezeigt werden
     de_tick_int = FuncFormatter(lambda x, pos: _fmt_de(x, 0))
 
     # --- Diagramm 1: Zeitzusammensetzung ---
@@ -110,6 +111,9 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     plt.gca().xaxis.set_major_formatter(de_tick_int)
     plt.legend(loc='lower right', fontsize=7)
 
+    # enumerate(mass_agg.itertuples()) ermöglicht es, 
+    # sowohl den Index als auch die Zeilenwerte zu erhalten, 
+    # um die Gesamtdurchlaufzeit neben den Balken anzuzeigen
     for idx, row in enumerate(mass_agg.itertuples()):
         total_t = row.gesamtdurchlaufzeit_tage
         plt.text(total_t + 0.15, idx, f"{_fmt_de(total_t, 1)} T", va='center', fontsize=8, fontweight='bold', color='#333333')
@@ -337,6 +341,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(t_st)
     story.append(Spacer(1, 3))
 
+    # Best-Practice und Worst-Practice Standorte ermitteln
     best_st = st_df.loc[st_df['Flusseffizienz'].idxmax(), 'standort']
     best_st_val = st_df['Flusseffizienz'].max()
     worst_st = st_df.loc[st_df['Liegezeit'].idxmax(), 'standort']
@@ -365,6 +370,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
+    # itertuples() statt iterrows() für bessere Performance bei großen DataFrames
     for r in st_w.itertuples():
         w_rows.append([
             Paragraph(str(r.standort), tbl_cell_left), Paragraph(str(r.Volumen), tbl_cell),
