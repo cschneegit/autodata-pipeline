@@ -20,7 +20,6 @@ from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
 
 
-# fmt_de: Formatierung von Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)
 def _fmt_de(val: float, decimals: int = 1, thousands: bool = False) -> str:
     """Formatiert Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)."""
     val = float(val)
