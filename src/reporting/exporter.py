@@ -19,7 +19,6 @@ from src.etl.importer import load_config, import_csv_data, validate_schema
 from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
 
-# Hilfsfunktion, um Zahlen im deutschen Format zu formatieren
 def _fmt_de(val: float, decimals: int = 1, thousands: bool = False) -> str:
     """Formatiert Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)."""
     val = float(val)
@@ -90,6 +89,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     avg_kosten = df_calc['kosten_eur'].mean()
     avg_satisfaction = df_calc['kundenzufriedenheit'].mean()
 
+    # Hilfsfunktion für deutsche Formatierung in Diagrammen
     de_tick_int = FuncFormatter(lambda x, pos: _fmt_de(x, 0))
 
     # --- Diagramm 1: Zeitzusammensetzung ---
