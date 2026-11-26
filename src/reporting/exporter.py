@@ -19,7 +19,7 @@ from src.etl.importer import load_config, import_csv_data, validate_schema
 from src.etl.anonymizer import anonymize_dataframe
 from src.analytics.kpi_calculator import calculate_kpis
 
-
+# Hilfsfunktion, um Zahlen im deutschen Format zu formatieren
 def _fmt_de(val: float, decimals: int = 1, thousands: bool = False) -> str:
     """Formatiert Zahlen nach deutscher Schreibweise (Komma als Dezimaltrennzeichen)."""
     val = float(val)
@@ -170,9 +170,11 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
             return Paragraph(text, tbl_header_9)
         return p10
 
+    # Hilfsfunktion, um Tabellenüberschriften dynamisch zu erstellen
     def _build_headers(labels: list[str], widths: list[float], padding: float = 2.0) -> list[Paragraph]:
         return [_hdr(lbl, w, padding) for lbl, w in zip(labels, widths)]
 
+    # Hilfsfunktion, um ein Fazit-Box-Element zu erstellen
     def make_fazit_box(title, text):
         html = f"<b>MANAGEMENT-FAZIT (KERNAUSSAGEN) – {title}</b><br/>{text}"
         p = Paragraph(html, box_text)
@@ -197,6 +199,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Spacer(1, 2))
 
     sc_widths = [190, 85, 85, 90, 84]
+    # headers mit Zeilenumbruch für bessere Lesbarkeit
     scorecard_headers = _build_headers(
         ["Kernkennzahl (KPI)", "Ist-Wert", "Vormonat", "Zielwert", "Status"],
         sc_widths,
@@ -255,6 +258,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
         p_widths,
         padding=2.0
     )
+    # itertuples() für bessere Performance bei großen DataFrames, da es schneller ist als iterrows()
     p_rows = [p_headers]
     for r in mass_df.itertuples():
         p_rows.append([
@@ -319,6 +323,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     ).reset_index()
 
     st_widths = [64, 44, 62, 54, 66, 64, 56, 62, 62]
+    # headers mit Zeilenumbruch für bessere Lesbarkeit
     st_headers = _build_headers(
         [
             "Standort", "Volumen", "Ø Bearb.-zeit", "Ø Liegezeit", "Ø Durchlaufzeit",
@@ -386,6 +391,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     st_w = df_calc.groupby('standort').agg(
         Volumen=('id', 'count'),
         AvgKosten=('kosten_eur', 'mean'),
+        # lambda-Funktion für Nacharbeitsquote, um den Prozentsatz zu berechnen
         Nacharbeit=('nacharbeit_bool', lambda x: (x.sum()/len(x))*100)
     ).reset_index()
 
@@ -438,6 +444,7 @@ def export_to_pdf(df: pd.DataFrame, kpis: dict, output_filename: str = "pipeline
     story.append(Image(bar_path, width=510, height=150))
     story.append(Spacer(1, 3))
 
+    # idxmax statt idmax, da idxmax() den Index zurückgibt, während idmax() den Wert zurückgibt
     best_sat_typ = sat_by_measure.idxmax()
     best_sat_val = sat_by_measure.max()
     worst_sat_typ = sat_by_measure.idxmin()
